@@ -13,7 +13,7 @@ const MODEL_CONFIGS = {
       numLandmarks: 478,
       numCoords: 3,
       tensorShape: [1, 478, 3], // Adjusted for single frame, 478 landmarks, 3 coords
-      requiresNormalization: true,
+      requiresNormalization: false, // Disabled normalization per user request
     },
     outputFormat: {
       outputType: 'classification', // Model primarily outputs classification logits

@@ -115,6 +115,8 @@ export const initializeOnnxModel = async (modelId = null) => {
     
     console.log("ONNX Session Input Names:", onnxSession.inputNames);
     console.log("ONNX Session Output Names:", onnxSession.outputNames);
+    // Log class labels mapping for verification
+    console.log("ONNX Model Class Labels:", currentModelConfig.outputFormat.classLabels);
     return true;
   } catch (error) {
     console.error('Failed to initialize ONNX model:', error);
@@ -124,62 +126,42 @@ export const initializeOnnxModel = async (modelId = null) => {
   }
 };
 
-export const preprocessLandmarks = (landmarksSequence) => {
-  if (!Array.isArray(landmarksSequence)) {
-    console.error("Error: Input landmarksSequence must be an array.");
-    return null;
-  }
+export const preprocessLandmarks = (landmarks) => {
+  // Convert single-frame landmarks (array of objects) into an array of frames
+  const frames = Array.isArray(landmarks) && landmarks.length > 0 && typeof landmarks[0].x === 'number'
+    ? [landmarks]
+    : Array.isArray(landmarks)
+      ? landmarks
+      : [];
 
   const { SEQ_LEN, NUM_LANDMARKS, NUM_COORDS } = getModelDimensions();
   const processedFrames = [];
-  
-  for (let frameIdx = 0; frameIdx < Math.min(landmarksSequence.length, SEQ_LEN); frameIdx++) {
-    const frameLandmarks = landmarksSequence[frameIdx];
-    const frameArray = Array(NUM_LANDMARKS).fill(null).map(() => Array(NUM_COORDS).fill(-1.0));
-    
-    if (frameLandmarks && Array.isArray(frameLandmarks)) {
-      for (let i = 0; i < Math.min(frameLandmarks.length, NUM_LANDMARKS); i++) {
-        const landmark = frameLandmarks[i];
-        if (landmark && typeof landmark.x === 'number' && 
-            typeof landmark.y === 'number' && 
-            typeof landmark.z === 'number') {
-          frameArray[i][0] = landmark.x;
-          frameArray[i][1] = landmark.y;
-          frameArray[i][2] = landmark.z;
-        }
+
+  for (let i = 0; i < SEQ_LEN; i++) {
+    const frame = frames[i] || [];
+    // Initialize all coords to -1
+    const frameArray = Array.from({ length: NUM_LANDMARKS }, () => Array(NUM_COORDS).fill(-1.0));
+    // Fill with actual landmark coords
+    for (let j = 0; j < Math.min(frame.length, NUM_LANDMARKS); j++) {
+      const lm = frame[j];
+      if (lm && typeof lm.x === 'number' && typeof lm.y === 'number' && typeof lm.z === 'number') {
+        frameArray[j][0] = lm.x;
+        frameArray[j][1] = lm.y;
+        frameArray[j][2] = lm.z;
       }
     }
     processedFrames.push(frameArray);
   }
-  
-  if (processedFrames.length < SEQ_LEN) {
-    const padFrameTemplate = Array(NUM_LANDMARKS).fill(null).map(() => Array(NUM_COORDS).fill(-1.0));
-    for (let i = processedFrames.length; i < SEQ_LEN; i++) {
-      processedFrames.push(JSON.parse(JSON.stringify(padFrameTemplate))); // Deep copy
-    }
-  }
-  
+
   const activeConfig = currentModelConfig || getActiveModelConfig();
   let finalFrames = processedFrames;
   if (activeConfig.inputFormat.requiresNormalization) {
-    // Note: The Python script's normalization is different from this one.
-    // This service uses applyDistanceNormalization defined below.
-    // The Python model is trained with its own normalization.
-    // For best results, preprocessing here should match training preprocessing.
-    // If using the model from the Python script, its normalization should be implemented here,
-    // or this applyDistanceNormalization should be verified to be compatible.
-    console.warn("Applying service's own distance normalization. Ensure this matches model's training.");
     finalFrames = applyDistanceNormalization(processedFrames);
   }
 
-  const flattenedArray = [];
-  for (const frame of finalFrames) {
-    for (const landmark of frame) {
-      flattenedArray.push(...landmark);
-    }
-  }
-  
-  return new Float32Array(flattenedArray);
+  // Flatten to 1D Float32Array
+  const flat = finalFrames.flat(2);
+  return new Float32Array(flat);
 };
 
 export const applyDistanceNormalization = (landmarksFrames) => {
@@ -322,6 +304,7 @@ export const mapClassificationLogitsToClassDetails = (logits, classLabels = null
 
 export const predictEngagement = async (landmarksData) => {
   try {
+    console.log('predictEngagement: raw landmarksData length:', landmarksData.length, landmarksData);
     if (!onnxSession) {
       console.log("ONNX session not initialized. Attempting to initialize...");
       const initialized = await initializeOnnxModel(); // Uses current active model ID
@@ -332,6 +315,8 @@ export const predictEngagement = async (landmarksData) => {
     const { SEQ_LEN, NUM_LANDMARKS, NUM_COORDS } = getModelDimensions(); // Uses currentModelConfig
     
     const preprocessedLandmarks = preprocessLandmarks(landmarksData); // Uses currentModelConfig via getModelDimensions
+    console.log('predictEngagement: preprocessedLandmarks first 30 values:', preprocessedLandmarks.slice ? preprocessedLandmarks.slice(0, 30) : preprocessedLandmarks);
+    console.log('predictEngagement: input tensor shape:', activeConfig.inputFormat.tensorShape);
     if (!preprocessedLandmarks) throw new Error('Failed to preprocess landmarks');
     
     const inputTensor = new ort.Tensor('float32', preprocessedLandmarks, activeConfig.inputFormat.tensorShape);
