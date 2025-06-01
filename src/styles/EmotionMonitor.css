@@ -1,0 +1,126 @@
+.emotion-monitor {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: Arial, sans-serif;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+    max-width: 700px;
+    margin: 20px auto;
+  }
+  
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 10px;
+    background-color: #eee;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+  }
+  
+  .status-text {
+    display: flex;
+    flex-direction: column; /* Stack status items vertically */
+    gap: 4px; /* Space between status items */
+    font-size: 0.9em;
+  }
+  .status-text span {
+    margin-right: 15px;
+  }
+  
+  .status-text .error-message {
+    color: red;
+    font-weight: bold;
+  }
+  
+  .button-group {
+    display: flex;
+    gap: 10px;
+  }
+  
+  .toggle-button, .retry-button {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9em;
+  }
+  
+  .toggle-button.active {
+    background-color: #4CAF50; /* Green */
+    color: white;
+  }
+  
+  .toggle-button.inactive {
+    background-color: #f44336; /* Red */
+    color: white;
+  }
+  
+  .retry-button {
+    background-color: #ff9800; /* Orange */
+    color: white;
+  }
+  
+  .video-container {
+    position: relative;
+    width: 640px; /* Default, adjust as needed */
+    height: 480px; /* Default, adjust as needed */
+    border: 1px solid #ddd;
+  }
+  
+  .webcam, .overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* Ensures the whole video/canvas is visible */
+  }
+  
+  .webcam {
+    z-index: 1;
+  }
+  
+  .overlay {
+    z-index: 2;
+  }
+  
+  .loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 3;
+    color: white;
+  }
+  
+  .loading-spinner {
+    border: 5px solid #f3f3f3; /* Light grey */
+    border-top: 5px solid #3498db; /* Blue */
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 15px;
+  }
+  
+  .loading-text {
+    font-size: 1.1em;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
