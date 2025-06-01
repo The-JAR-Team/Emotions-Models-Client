@@ -14,6 +14,17 @@ const EmotionMonitor = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [onnxModelReady, setOnnxModelReady] = useState(false);
   const [onnxStatus, setOnnxStatus] = useState('Loading ONNX model...');
+  // Store raw class probabilities for status display
+  const [allProbabilities, setAllProbabilities] = useState([]);
+  // List of emotions to ignore when selecting top result
+  const [ignoredEmotions, setIgnoredEmotions] = useState([]);
+  // Toggle ignore for a given emotion label
+  const handleToggleIgnore = (label) => {
+    setIgnoredEmotions(prev =>
+      prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label]
+    );
+  };
+  // State for emotions to ignore
 
   // For FPS calculation (optional, but good for debugging)
   const frameCountRef = useRef(0);
@@ -102,9 +113,24 @@ const EmotionMonitor = () => {
         try {
           const prediction = await predictEngagement(landmarks, videoWidth, videoHeight);
           console.log(`[${new Date().toISOString()}] Prediction result:`, prediction);
-          if (prediction) {
-            setDetectedEmotion(prediction.emotion);
-            setEmotionScore(prediction.score);
+        if (prediction) {
+          setDetectedEmotion(prediction.emotion);
+          setEmotionScore(prediction.score);
+          // Update all class probabilities
+          const modelInfo = getCurrentModelInfo();
+          const labels = modelInfo.outputFormat.classLabels;
+          const probs = prediction.classification_head_probabilities || [];
+          // Map labels and probabilities
+          const mapped = probs.map((p, idx) => ({ label: labels[idx], probability: p }));
+          setAllProbabilities(mapped);
+          // Filter out ignored emotions, then re-normalize
+          const remaining = mapped.filter(item => !ignoredEmotions.includes(item.label));
+          const total = remaining.reduce((sum, item) => sum + item.probability, 0) || 1;
+          const normalized = remaining.map(item => ({ label: item.label, probability: item.probability / total }));
+          // Choose top normalized
+          const best = normalized.reduce((maxItem, item) => item.probability > maxItem.probability ? item : maxItem, { label: '', probability: 0 });
+          setDetectedEmotion(best.label);
+          setEmotionScore(best.probability);
           } else {
             setDetectedEmotion('Error');
             setEmotionScore(null);
@@ -204,8 +230,35 @@ const EmotionMonitor = () => {
         <div className="status-text">
           <span>FaceMesh: {faceMeshStatus}</span>
           <span>ONNX: {onnxStatus}</span>
-          <span>Emotion: {detectedEmotion ? `${detectedEmotion} (${emotionScore !== null ? emotionScore.toFixed(2) : '...'})` : 'Detecting...'}</span>
+          <span className="top-emotion">Top Emotion: {detectedEmotion || 'Detecting...'}</span>
           {errorMessage && <span className="error-message">Error: {errorMessage}</span>}
+          {/* Show all class probabilities */}
+          {allProbabilities.length > 0 && (
+            <div className="probabilities-list">
+              {allProbabilities.map(({ label, probability }) => (
+                <span key={label}>{label}: { (probability * 100).toFixed(1) }%</span>
+              ))}
+            </div>
+          )}
+          {/* Checkboxes to ignore specific emotions */}
+          {allProbabilities.length > 0 && (
+            <div className="ignore-list">
+              <span>Ignore:</span>
+              {Object.keys(getCurrentModelInfo().outputFormat.classLabels).map(key => {
+                const label = getCurrentModelInfo().outputFormat.classLabels[key];
+                const checked = ignoredEmotions.includes(label);
+                return (
+                  <label key={label}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => handleToggleIgnore(label)}
+                    /> {label}
+                  </label>
+                );
+              })}
+            </div>
+          )}
         </div>
         <div className="button-group">
           <button onClick={toggleActive} className={`toggle-button ${isActive ? 'active' : 'inactive'}`}>
