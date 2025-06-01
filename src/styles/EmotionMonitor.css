@@ -7,12 +7,13 @@
     border: 1px solid #ccc;
     border-radius: 8px;
     background-color: #f9f9f9;
-    max-width: 700px;
+    max-width: 90%;
     margin: 20px auto;
   }
   
   .status-bar {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
     width: 100%;
@@ -25,12 +26,12 @@
   
   .status-text {
     display: flex;
-    flex-direction: column; /* Stack status items vertically */
-    gap: 4px; /* Space between status items */
+    flex-direction: column;
+    gap: 4px;
     font-size: 0.9em;
   }
   .status-text span {
-    margin-right: 15px;
+    margin: 4px 0;
   }
   
   .status-text .error-message {
@@ -67,19 +68,19 @@
   }
   
   .video-container {
-    position: relative;
-    width: 640px; /* Default, adjust as needed */
-    height: 480px; /* Default, adjust as needed */
-    border: 1px solid #ddd;
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  aspect-ratio: 4 / 3;
+  border: 1px solid #ddd;
   }
   
   .webcam, .overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: contain; /* Ensures the whole video/canvas is visible */
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   }
   
   .webcam {

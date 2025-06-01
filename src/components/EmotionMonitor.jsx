@@ -18,6 +18,8 @@ const EmotionMonitor = () => {
   // For FPS calculation (optional, but good for debugging)
   const frameCountRef = useRef(0);
   const lastFpsLogTimeRef = useRef(Date.now());
+  // Throttle ONNX inference to once every 1.5 seconds
+  const lastInferenceTimeRef = useRef(0);
 
   // Initialize ONNX model
   useEffect(() => {
@@ -92,22 +94,27 @@ const EmotionMonitor = () => {
     const landmarks = results.multiFaceLandmarks[0]; // Assuming one face
 
     if (isActive && landmarks && onnxModelReady) {
-      try {
-        // The emotion ONNX model processes single frames, not sequences like the engagement one.
-        const prediction = await predictEngagement(landmarks, videoWidth, videoHeight); // Changed predictEmotion to predictEngagement
-        if (prediction) {
-          setDetectedEmotion(prediction.emotion);
-          setEmotionScore(prediction.score); // This is a logit, not probability
-          // console.log('Emotion Prediction:', prediction);
-        } else {
+      const now = Date.now();
+      // Only run inference every 1.5 seconds (1500 ms)
+      if (now - lastInferenceTimeRef.current >= 1500) {
+        lastInferenceTimeRef.current = now;
+        console.log(`[${new Date().toISOString()}] Running inference...`);
+        try {
+          const prediction = await predictEngagement(landmarks, videoWidth, videoHeight);
+          console.log(`[${new Date().toISOString()}] Prediction result:`, prediction);
+          if (prediction) {
+            setDetectedEmotion(prediction.emotion);
+            setEmotionScore(prediction.score);
+          } else {
+            setDetectedEmotion('Error');
+            setEmotionScore(null);
+          }
+        } catch (error) {
+          console.error('Error predicting emotion:', error);
+          setErrorMessage('Error predicting emotion: ' + error.message);
           setDetectedEmotion('Error');
           setEmotionScore(null);
         }
-      } catch (error) {
-        console.error('Error predicting emotion:', error);
-        setErrorMessage('Error predicting emotion: ' + error.message);
-        setDetectedEmotion('Error');
-        setEmotionScore(null);
       }
     }
 
