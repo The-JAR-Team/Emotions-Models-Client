@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import useFaceMesh from '../hooks/useFaceMesh';
-import { initializeOnnxModel, predictEmotion, getCurrentModelInfo } from '../services/emotionOnnxService';
+import { initializeOnnxModel, predictEngagement, getCurrentModelInfo } from '../services/emotionOnnxService'; // Changed predictEmotion to predictEngagement
 import '../styles/EmotionMonitor.css';
 
 const EmotionMonitor = () => {
@@ -94,7 +94,7 @@ const EmotionMonitor = () => {
     if (isActive && landmarks && onnxModelReady) {
       try {
         // The emotion ONNX model processes single frames, not sequences like the engagement one.
-        const prediction = await predictEmotion(landmarks, videoWidth, videoHeight);
+        const prediction = await predictEngagement(landmarks, videoWidth, videoHeight); // Changed predictEmotion to predictEngagement
         if (prediction) {
           setDetectedEmotion(prediction.emotion);
           setEmotionScore(prediction.score); // This is a logit, not probability
