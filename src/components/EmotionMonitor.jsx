@@ -25,15 +25,49 @@ const EmotionMonitor = () => {
   // Store raw class probabilities for status display
   const [allProbabilities, setAllProbabilities] = useState([]);
   // Grab current model info (may be null on failure)
-  const modelInfo = getCurrentModelInfo();
-  // List of emotions to ignore when selecting top result
+  const modelInfo = getCurrentModelInfo();  // List of emotions to ignore when selecting top result
   const [ignoredEmotions, setIgnoredEmotions] = useState([]);
+  // State for softmax filter toggle
+  const [showFilteredProbabilities, setShowFilteredProbabilities] = useState(true);
+  
   // Toggle ignore for a given emotion label
   const handleToggleIgnore = (label) => {
     setIgnoredEmotions(prev =>
       prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label]
     );
-  };  // Color mapping for emotions
+  };
+
+  // Custom softmax function for filtered probabilities
+  const applySoftmax = (probabilities) => {
+    const filtered = probabilities.filter(item => !ignoredEmotions.includes(item.label));
+    if (filtered.length === 0) return probabilities;
+    
+    // Apply softmax to filtered probabilities
+    const maxProb = Math.max(...filtered.map(item => item.probability));
+    const expValues = filtered.map(item => ({
+      ...item,
+      probability: Math.exp(item.probability - maxProb)
+    }));
+    
+    const sumExp = expValues.reduce((sum, item) => sum + item.probability, 0);
+    const normalized = expValues.map(item => ({
+      ...item,
+      probability: item.probability / sumExp
+    }));
+    
+    return normalized.sort((a, b) => b.probability - a.probability);
+  };
+
+  // Get probabilities to display based on toggle state
+  const getDisplayProbabilities = () => {
+    if (!allProbabilities.length) return [];
+    
+    if (showFilteredProbabilities) {
+      return applySoftmax(allProbabilities);
+    } else {
+      return allProbabilities.sort((a, b) => b.probability - a.probability);
+    }
+  };// Color mapping for emotions
   const getEmotionColor = (emotion) => {
     const emotionColors = {
       'Happiness': '#fbbf24',
@@ -405,13 +439,21 @@ const EmotionMonitor = () => {
         </div>
 
         {/* Probabilities sidebar */}
-        <div className="probabilities-sidebar">
-          {/* Enhanced probabilities display */}
+        <div className="probabilities-sidebar">          {/* Enhanced probabilities display */}
           {allProbabilities.length > 0 && (
             <div className="probabilities-section">
-              <div className="probabilities-title">🎭 Emotion Probabilities</div>
+              <div className="probabilities-header">
+                <div className="probabilities-title">🎭 Emotion Probabilities</div>
+                <button 
+                  className={`softmax-toggle-btn ${showFilteredProbabilities ? 'filtered' : 'raw'}`}
+                  onClick={() => setShowFilteredProbabilities(!showFilteredProbabilities)}
+                  title={showFilteredProbabilities ? 'Showing filtered with softmax' : 'Showing all raw probabilities'}
+                >
+                  {showFilteredProbabilities ? '🧮 Filtered' : '📊 Raw'}
+                </button>
+              </div>
               <div className="probabilities-list">
-                {allProbabilities.map(({ label, probability }) => (
+                {getDisplayProbabilities().map(({ label, probability }) => (
                   <div key={label} className="probability-item" data-emotion={label}>
                     <span className="probability-label">{label}</span>
                     <span className="probability-value">{(probability * 100).toFixed(1)}%</span>
