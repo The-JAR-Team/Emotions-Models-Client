@@ -33,8 +33,35 @@ const EmotionMonitor = () => {
     setIgnoredEmotions(prev =>
       prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label]
     );
+  };  // Color mapping for emotions
+  const getEmotionColor = (emotion) => {
+    const emotionColors = {
+      'Happiness': '#fbbf24',
+      'Sadness': '#3b82f6', 
+      'Anger': '#ef4444',
+      'Fear': '#8b5cf6',
+      'Surprise': '#06b6d4',
+      'Disgust': '#84cc16',
+      'Contempt': '#6b7280',
+      'Neutral': '#64748b'
+    };
+    return emotionColors[emotion] || '#64748b';
   };
-  // State for emotions to ignore
+
+  // Get emotion background color for bounding box
+  const getEmotionBgColor = (emotion) => {
+    const emotionBgColors = {
+      'Happiness': 'rgba(251, 191, 36, 0.2)',
+      'Sadness': 'rgba(59, 130, 246, 0.2)',
+      'Anger': 'rgba(239, 68, 68, 0.2)',
+      'Fear': 'rgba(139, 92, 246, 0.2)',
+      'Surprise': 'rgba(6, 182, 212, 0.2)',
+      'Disgust': 'rgba(132, 204, 22, 0.2)',
+      'Contempt': 'rgba(107, 114, 128, 0.2)',
+      'Neutral': 'rgba(100, 116, 139, 0.2)'
+    };
+    return emotionBgColors[emotion] || 'rgba(100, 116, 139, 0.2)';
+  };
 
   // For FPS calculation (optional, but good for debugging)
   const frameCountRef = useRef(0);
@@ -215,54 +242,68 @@ const EmotionMonitor = () => {
       minY = Math.min(minY, y);
       maxX = Math.max(maxX, x);
       maxY = Math.max(maxY, y);
-    });
-
-    const padding = 20;
+    });    const padding = 20;
     minX = Math.max(0, minX - padding);
     minY = Math.max(0, minY - padding);
     maxX = Math.min(canvas.width, maxX + padding);
-    maxY = Math.min(canvas.height, maxY + padding);    ctx.strokeStyle = '#FFCC00'; // Default yellow
-    if (detectedEmotion) {
-      if (['Happy', 'Surprise'].includes(detectedEmotion)) ctx.strokeStyle = '#00FF00'; // Green
-      else if (['Sad', 'Fear', 'Disgust', 'Anger', 'Contempt'].includes(detectedEmotion)) ctx.strokeStyle = '#FF0000'; // Red
-    }
-    ctx.lineWidth = 4;
+    maxY = Math.min(canvas.height, maxY + padding);
+    
+    // Use emotion-specific colors
+    const emotionColor = getEmotionColor(detectedEmotion);
+    const emotionBgColor = getEmotionBgColor(detectedEmotion);
+    
+    ctx.strokeStyle = emotionColor;
+    ctx.lineWidth = 6;
+    ctx.shadowColor = emotionColor;
+    ctx.shadowBlur = 8;
     ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
-
-    if (detectedEmotion) {
+    
+    // Reset shadow for fill operations
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;    if (detectedEmotion) {
       const boxWidth = maxX - minX;
       const boxHeight = maxY - minY;
       
       // Calculate dynamic font size based on box size
-      const baseFontSize = Math.max(16, Math.min(28, Math.min(boxWidth / 8, boxHeight / 12)));
-      const labelHeight = baseFontSize + 20;
+      const baseFontSize = Math.max(18, Math.min(32, Math.min(boxWidth / 8, boxHeight / 12)));
+      const labelHeight = baseFontSize + 30;
       
-      // Draw background for emotion label
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      // Draw background for emotion label with gradient
+      const gradient = ctx.createLinearGradient(minX, minY - labelHeight, minX, minY);
+      gradient.addColorStop(0, 'rgba(0, 0, 0, 0.9)');
+      gradient.addColorStop(1, 'rgba(0, 0, 0, 0.7)');
+      ctx.fillStyle = gradient;
       ctx.fillRect(minX, minY - labelHeight, boxWidth, labelHeight);
       
+      // Add subtle border to label background
+      ctx.strokeStyle = emotionColor;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(minX, minY - labelHeight, boxWidth, labelHeight);
+      
       // Draw emotion text with enhanced styling
-      ctx.font = `bold ${baseFontSize}px 'Segoe UI', Arial, sans-serif`;
-      ctx.fillStyle = ctx.strokeStyle; // Use the same color as the box for text
+      ctx.font = `bold ${baseFontSize}px 'Inter', 'Segoe UI', Arial, sans-serif`;
+      ctx.fillStyle = emotionColor;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       
-      // Add text shadow effect
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
-      ctx.shadowBlur = 3;
-      ctx.shadowOffsetX = 1;
-      ctx.shadowOffsetY = 1;
+      // Add text glow effect
+      ctx.shadowColor = emotionColor;
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
       
       const emotionText = `${detectedEmotion}`;
-      const scoreText = `${emotionScore !== null ? (emotionScore * 100).toFixed(0) + '%' : 'N/A'}`;
+      const scoreText = `${emotionScore !== null ? (emotionScore * 100).toFixed(1) + '%' : 'N/A'}`;
       
-      // Draw emotion name
-      ctx.fillText(emotionText, minX + (boxWidth / 2), minY - labelHeight + baseFontSize/2 + 5);
+      // Draw emotion name with glow
+      ctx.fillText(emotionText, minX + (boxWidth / 2), minY - labelHeight + baseFontSize/2 + 8);
       
-      // Draw score with smaller font
-      ctx.font = `600 ${Math.max(12, baseFontSize * 0.7)}px 'Segoe UI', Arial, sans-serif`;
+      // Draw score with smaller font and white color
+      ctx.font = `600 ${Math.max(14, baseFontSize * 0.75)}px 'Inter', 'Segoe UI', Arial, sans-serif`;
       ctx.fillStyle = '#FFFFFF';
-      ctx.fillText(scoreText, minX + (boxWidth / 2), minY - labelHeight + baseFontSize + 8);
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+      ctx.shadowBlur = 4;
+      ctx.fillText(scoreText, minX + (boxWidth / 2), minY - labelHeight + baseFontSize + 12);
       
       // Reset shadow
       ctx.shadowColor = 'transparent';
@@ -347,56 +388,62 @@ const EmotionMonitor = () => {
                 Retry
               </button>
             )}
-          </div>
-        </div>
-
-        {/* Enhanced probabilities display */}
-        {allProbabilities.length > 0 && (
-          <div className="probabilities-section">
-            <div className="probabilities-title">Emotion Probabilities</div>
-            <div className="probabilities-list">
-              {allProbabilities.map(({ label, probability }) => (
-                <div key={label} className="probability-item">
-                  <span className="probability-label">{label}</span>
-                  <span className="probability-value">{(probability * 100).toFixed(1)}%</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Styled emotion filter buttons */}
-        {allProbabilities.length > 0 && modelInfo && (
-          <div className="emotion-filters">
-            <div className="filters-title">Emotion Filters</div>
-            <div className="emotion-toggle-grid">
-              {Object.keys(modelInfo.outputFormat.classLabels).map(key => {
-                const label = modelInfo.outputFormat.classLabels[key];
-                const isIgnored = ignoredEmotions.includes(label);
-                return (
-                  <div
-                    key={label}
-                    className={`emotion-toggle-btn ${isIgnored ? 'disabled' : 'enabled'}`}
-                    onClick={() => handleToggleIgnore(label)}
-                  >
-                    {label}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+          </div>        </div>
       </div>
 
-      <div className="video-container">
-        <video ref={videoRef} className="webcam" muted playsInline autoPlay style={{ objectFit: 'contain' }} />
-        <canvas ref={canvasRef} className="overlay" style={{ objectFit: 'contain' }} />
-        {isLoading && (
-          <div className="loading-overlay">
-            <div className="loading-spinner"></div>
-            <div className="loading-text">{faceMeshStatus}</div>
-          </div>
-        )}
+      {/* Main content layout - side by side */}
+      <div className="main-content">
+        <div className="video-container">
+          <video ref={videoRef} className="webcam" muted playsInline autoPlay style={{ objectFit: 'contain' }} />
+          <canvas ref={canvasRef} className="overlay" style={{ objectFit: 'contain' }} />
+          {isLoading && (
+            <div className="loading-overlay">
+              <div className="loading-spinner"></div>
+              <div className="loading-text">{faceMeshStatus}</div>
+            </div>
+          )}
+        </div>
+
+        {/* Probabilities sidebar */}
+        <div className="probabilities-sidebar">
+          {/* Enhanced probabilities display */}
+          {allProbabilities.length > 0 && (
+            <div className="probabilities-section">
+              <div className="probabilities-title">🎭 Emotion Probabilities</div>
+              <div className="probabilities-list">
+                {allProbabilities.map(({ label, probability }) => (
+                  <div key={label} className="probability-item" data-emotion={label}>
+                    <span className="probability-label">{label}</span>
+                    <span className="probability-value">{(probability * 100).toFixed(1)}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Styled emotion filter buttons */}
+          {allProbabilities.length > 0 && modelInfo && (
+            <div className="emotion-filters">
+              <div className="filters-title">🎛️ Emotion Filters</div>
+              <div className="emotion-toggle-grid">
+                {Object.keys(modelInfo.outputFormat.classLabels).map(key => {
+                  const label = modelInfo.outputFormat.classLabels[key];
+                  const isIgnored = ignoredEmotions.includes(label);
+                  return (
+                    <div
+                      key={label}
+                      className={`emotion-toggle-btn ${isIgnored ? 'disabled' : 'enabled'}`}
+                      data-emotion={label}
+                      onClick={() => handleToggleIgnore(label)}
+                    >
+                      {label}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* FaceMesh hook */}

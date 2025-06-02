@@ -1,41 +1,79 @@
 .emotion-monitor {
-    --color-bg: #f5f7fa;
-    --color-primary: #2c3e50;
-    --color-secondary: #4a90e2;
-    --color-success: #27ae60;
-    --color-error: #c0392b;
-    --color-warning: #f39c12;
-    --color-accent: #e74c3c;
-    --color-neutral: #95a5a6;
-    --border-radius: 12px;
-    --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    /* Base colors */
+    --color-bg: #f8fafc;
+    --color-primary: #1e293b;
+    --color-secondary: #3b82f6;
+    --color-success: #10b981;
+    --color-error: #ef4444;
+    --color-warning: #f59e0b;
+    --color-accent: #8b5cf6;
+    --color-neutral: #64748b;
     
-    background: linear-gradient(135deg, var(--color-bg) 0%, #edf2f7 100%);
+    /* Emotion-specific colors */
+    --emotion-happiness: #fbbf24;
+    --emotion-happiness-bg: #fef3c7;
+    --emotion-happiness-border: #f59e0b;
+    
+    --emotion-sadness: #3b82f6;
+    --emotion-sadness-bg: #dbeafe;
+    --emotion-sadness-border: #2563eb;
+    
+    --emotion-anger: #ef4444;
+    --emotion-anger-bg: #fee2e2;
+    --emotion-anger-border: #dc2626;
+    
+    --emotion-fear: #8b5cf6;
+    --emotion-fear-bg: #ede9fe;
+    --emotion-fear-border: #7c3aed;
+    
+    --emotion-surprise: #06b6d4;
+    --emotion-surprise-bg: #cffafe;
+    --emotion-surprise-border: #0891b2;
+    
+    --emotion-disgust: #84cc16;
+    --emotion-disgust-bg: #ecfccb;
+    --emotion-disgust-border: #65a30d;
+    
+    --emotion-contempt: #6b7280;
+    --emotion-contempt-bg: #f3f4f6;
+    --emotion-contempt-border: #4b5563;
+    
+    --emotion-neutral: #64748b;
+    --emotion-neutral-bg: #f1f5f9;
+    --emotion-neutral-border: #475569;
+    
+    --border-radius: 16px;
+    --shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.15);
+    
+    background: linear-gradient(135deg, var(--color-bg) 0%, #e2e8f0 100%);
     color: var(--color-primary);
     display: flex;
     flex-direction: column;
     align-items: center;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    padding: 20px;
+    font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    padding: 24px;
     border: none;
     border-radius: var(--border-radius);
     box-shadow: var(--shadow);
     width: 100%;
-    max-width: 1200px; /* Increased container width for larger display */
+    max-width: 1400px;
     margin: 20px auto;
-    min-height: 600px;
-  }
-    .status-bar {
+    min-height: 700px;
+    backdrop-filter: blur(10px);
+  }  .status-bar {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 20px;
     width: 100%;
-    padding: 20px;
-    background: white;
+    padding: 24px;
+    background: rgba(255, 255, 255, 0.95);
     border-radius: var(--border-radius);
     box-shadow: var(--shadow);
-    margin-bottom: 20px;
+    margin-bottom: 24px;
     box-sizing: border-box;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
   }
   
   .status-header {
@@ -43,50 +81,96 @@
     flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
-    gap: 16px;
+    gap: 20px;
   }
+
 /* Model selector styling */
 .model-loader {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
 }
+
+.model-loader label {
+  font-weight: 600;
+  color: var(--color-primary);
+  font-size: 0.95em;
+}
+
+.model-loader select {
+  padding: 8px 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  color: var(--color-primary);
+  font-weight: 500;
+  min-width: 200px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.model-loader select:focus {
+  outline: none;
+  border-color: var(--color-secondary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
 .model-loader select:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  background: #f1f5f9;
 }
+
 .model-loader .error-message {
   margin-left: 8px;
   color: var(--color-error);
-  font-size: 0.9em;
+  font-size: 0.85em;
+  font-weight: 600;
+  padding: 4px 8px;
+  background: var(--emotion-anger-bg);
+  border-radius: 6px;
 }
-  
-  .status-text {
+    .status-text {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
     font-size: 0.95em;
     flex: 1;
+    padding: 16px;
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
   }
   
   .status-text span {
     margin: 0;
-    padding: 4px 0;
-    border-bottom: 1px solid #f0f0f0;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.7);
+    font-weight: 500;
+    transition: all 0.2s ease;
   }
   
-  .status-text span:last-child {
-    border-bottom: none;
+  .status-text span:hover {
+    background: rgba(255, 255, 255, 0.9);
+    transform: translateY(-1px);
   }
   
   .top-emotion {
-    font-size: 1.2em !important;
-    font-weight: bold;
+    font-size: 1.3em !important;
+    font-weight: 700 !important;
     color: var(--color-secondary);
-    background: linear-gradient(135deg, #4a90e2, #357abd);
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8) !important;
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    padding: 12px 16px !important;
+    border: 2px solid var(--color-secondary);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
   }
     .status-text .error-message {
     color: var(--color-error);
@@ -96,135 +180,708 @@
     border-radius: 6px;
     border: 1px solid var(--color-error);
   }
-  
-  /* Probabilities List Styling */
+    /* Probabilities List Styling */
   .probabilities-section {
-    margin-top: 16px;
+    margin-top: 20px;
     width: 100%;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.9));
+    border-radius: 16px;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    backdrop-filter: blur(10px);
   }
   
   .probabilities-title {
-    font-size: 1.1em;
-    font-weight: bold;
+    font-size: 1.2em;
+    font-weight: 700;
     color: var(--color-primary);
-    margin-bottom: 12px;
+    margin-bottom: 16px;
     text-align: center;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
   
   .probabilities-list {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
     margin-bottom: 16px;
   }
   
   .probability-item {
-    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-    padding: 8px 12px;
-    border-radius: 8px;
+    background: linear-gradient(135deg, #ffffff, #f8fafc);
+    padding: 12px 16px;
+    border-radius: 12px;
     text-align: center;
     font-size: 0.9em;
-    border: 1px solid #dee2e6;
-    transition: all 0.2s ease;
+    border: 2px solid transparent;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .probability-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 0;
+  }
+  
+  .probability-item:hover::before {
+    opacity: 1;
   }
   
   .probability-item:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    border-color: var(--color-secondary);
   }
   
   .probability-label {
-    font-weight: 600;
+    font-weight: 700;
     color: var(--color-primary);
     display: block;
-    margin-bottom: 2px;
+    margin-bottom: 4px;
+    position: relative;
+    z-index: 1;
   }
   
   .probability-value {
     color: var(--color-secondary);
-    font-weight: bold;
+    font-weight: 600;
+    font-size: 1.1em;
+    position: relative;
+    z-index: 1;
   }
-  
-  /* Emotion Filter Controls */
+
+  /* Emotion-specific probability item styling */
+  .probability-item[data-emotion="Happiness"] {
+    border-color: var(--emotion-happiness-border);
+    background: linear-gradient(135deg, var(--emotion-happiness-bg), #ffffff);
+  }
+  .probability-item[data-emotion="Happiness"]:hover {
+    border-color: var(--emotion-happiness);
+    box-shadow: 0 8px 25px rgba(251, 191, 36, 0.3);
+  }
+
+  .probability-item[data-emotion="Sadness"] {
+    border-color: var(--emotion-sadness-border);
+    background: linear-gradient(135deg, var(--emotion-sadness-bg), #ffffff);
+  }
+  .probability-item[data-emotion="Sadness"]:hover {
+    border-color: var(--emotion-sadness);
+    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+  }
+
+  .probability-item[data-emotion="Anger"] {
+    border-color: var(--emotion-anger-border);
+    background: linear-gradient(135deg, var(--emotion-anger-bg), #ffffff);
+  }
+  .probability-item[data-emotion="Anger"]:hover {
+    border-color: var(--emotion-anger);
+    box-shadow: 0 8px 25px rgba(239, 68, 68, 0.3);
+  }
+
+  .probability-item[data-emotion="Fear"] {
+    border-color: var(--emotion-fear-border);
+    background: linear-gradient(135deg, var(--emotion-fear-bg), #ffffff);
+  }
+  .probability-item[data-emotion="Fear"]:hover {
+    border-color: var(--emotion-fear);
+    box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);
+  }
+
+  .probability-item[data-emotion="Surprise"] {
+    border-color: var(--emotion-surprise-border);
+    background: linear-gradient(135deg, var(--emotion-surprise-bg), #ffffff);
+  }
+  .probability-item[data-emotion="Surprise"]:hover {
+    border-color: var(--emotion-surprise);
+    box-shadow: 0 8px 25px rgba(6, 182, 212, 0.3);
+  }
+
+  .probability-item[data-emotion="Disgust"] {
+    border-color: var(--emotion-disgust-border);
+    background: linear-gradient(135deg, var(--emotion-disgust-bg), #ffffff);
+  }
+  .probability-item[data-emotion="Disgust"]:hover {
+    border-color: var(--emotion-disgust);
+    box-shadow: 0 8px 25px rgba(132, 204, 22, 0.3);
+  }
+
+  .probability-item[data-emotion="Contempt"] {
+    border-color: var(--emotion-contempt-border);
+    background: linear-gradient(135deg, var(--emotion-contempt-bg), #ffffff);
+  }
+  .probability-item[data-emotion="Contempt"]:hover {
+    border-color: var(--emotion-contempt);
+    box-shadow: 0 8px 25px rgba(107, 114, 128, 0.3);
+  }
+
+  .probability-item[data-emotion="Neutral"] {
+    border-color: var(--emotion-neutral-border);
+    background: linear-gradient(135deg, var(--emotion-neutral-bg), #ffffff);
+  }
+  .probability-item[data-emotion="Neutral"]:hover {
+    border-color: var(--emotion-neutral);
+    box-shadow: 0 8px 25px rgba(100, 116, 139, 0.3);
+  }
+    /* Emotion Filter Controls */
   .emotion-filters {
     width: 100%;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.9));
+    border-radius: 16px;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    backdrop-filter: blur(10px);
   }
   
   .filters-title {
-    font-size: 1.1em;
-    font-weight: bold;
+    font-size: 1.2em;
+    font-weight: 700;
     color: var(--color-primary);
-    margin-bottom: 12px;
+    margin-bottom: 16px;
     text-align: center;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
   
   .emotion-toggle-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
   }
   
   .emotion-toggle-btn {
-    padding: 8px 12px;
+    padding: 12px 16px;
     border: 2px solid;
-    border-radius: 8px;
+    border-radius: 12px;
     background: white;
     cursor: pointer;
-    font-size: 0.85em;
+    font-size: 0.9em;
     font-weight: 600;
     text-align: center;
-    transition: all 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     user-select: none;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .emotion-toggle-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.5s ease;
+  }
+  
+  .emotion-toggle-btn:hover::before {
+    left: 100%;
   }
   
   .emotion-toggle-btn.enabled {
     border-color: var(--color-success);
     color: var(--color-success);
-    background: linear-gradient(135deg, #f8fff8, #e8f8e8);
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(255, 255, 255, 0.9));
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
   }
   
   .emotion-toggle-btn.enabled:hover {
     background: var(--color-success);
     color: white;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(39, 174, 96, 0.3);
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
   }
   
   .emotion-toggle-btn.disabled {
     border-color: var(--color-neutral);
     color: var(--color-neutral);
-    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-    opacity: 0.7;
+    background: linear-gradient(135deg, rgba(100, 116, 139, 0.1), rgba(241, 245, 249, 0.9));
+    opacity: 0.8;
   }
   
   .emotion-toggle-btn.disabled:hover {
     background: var(--color-neutral);
     color: white;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(149, 165, 166, 0.3);
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 8px 25px rgba(100, 116, 139, 0.4);
   }
-    .button-group {
+
+  /* Emotion-specific toggle button styling */
+  .emotion-toggle-btn[data-emotion="Happiness"].enabled {
+    border-color: var(--emotion-happiness);
+    color: var(--emotion-happiness);
+    background: linear-gradient(135deg, var(--emotion-happiness-bg), rgba(255, 255, 255, 0.9));
+  }
+  .emotion-toggle-btn[data-emotion="Happiness"].enabled:hover {
+    background: var(--emotion-happiness);
+    box-shadow: 0 8px 25px rgba(251, 191, 36, 0.4);
+  }
+
+  .emotion-toggle-btn[data-emotion="Sadness"].enabled {
+    border-color: var(--emotion-sadness);
+    color: var(--emotion-sadness);
+    background: linear-gradient(135deg, var(--emotion-sadness-bg), rgba(255, 255, 255, 0.9));
+  }
+  .emotion-toggle-btn[data-emotion="Sadness"].enabled:hover {
+    background: var(--emotion-sadness);
+    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+  }
+
+  .emotion-toggle-btn[data-emotion="Anger"].enabled {
+    border-color: var(--emotion-anger);
+    color: var(--emotion-anger);
+    background: linear-gradient(135deg, var(--emotion-anger-bg), rgba(255, 255, 255, 0.9));
+  }
+  .emotion-toggle-btn[data-emotion="Anger"].enabled:hover {
+    background: var(--emotion-anger);
+    box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+  }
+
+  .emotion-toggle-btn[data-emotion="Fear"].enabled {
+    border-color: var(--emotion-fear);
+    color: var(--emotion-fear);
+    background: linear-gradient(135deg, var(--emotion-fear-bg), rgba(255, 255, 255, 0.9));
+  }
+  .emotion-toggle-btn[data-emotion="Fear"].enabled:hover {
+    background: var(--emotion-fear);
+    box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4);
+  }
+
+  .emotion-toggle-btn[data-emotion="Surprise"].enabled {
+    border-color: var(--emotion-surprise);
+    color: var(--emotion-surprise);
+    background: linear-gradient(135deg, var(--emotion-surprise-bg), rgba(255, 255, 255, 0.9));
+  }
+  .emotion-toggle-btn[data-emotion="Surprise"].enabled:hover {
+    background: var(--emotion-surprise);
+    box-shadow: 0 8px 25px rgba(6, 182, 212, 0.4);
+  }
+
+  .emotion-toggle-btn[data-emotion="Disgust"].enabled {
+    border-color: var(--emotion-disgust);
+    color: var(--emotion-disgust);
+    background: linear-gradient(135deg, var(--emotion-disgust-bg), rgba(255, 255, 255, 0.9));
+  }
+  .emotion-toggle-btn[data-emotion="Disgust"].enabled:hover {
+    background: var(--emotion-disgust);
+    box-shadow: 0 8px 25px rgba(132, 204, 22, 0.4);
+  }
+
+  .emotion-toggle-btn[data-emotion="Contempt"].enabled {
+    border-color: var(--emotion-contempt);
+    color: var(--emotion-contempt);
+    background: linear-gradient(135deg, var(--emotion-contempt-bg), rgba(255, 255, 255, 0.9));
+  }
+  .emotion-toggle-btn[data-emotion="Contempt"].enabled:hover {
+    background: var(--emotion-contempt);
+    box-shadow: 0 8px 25px rgba(107, 114, 128, 0.4);
+  }
+
+  .emotion-toggle-btn[data-emotion="Neutral"].enabled {
+    border-color: var(--emotion-neutral);
+    color: var(--emotion-neutral);
+    background: linear-gradient(135deg, var(--emotion-neutral-bg), rgba(255, 255, 255, 0.9));
+  }
+  .emotion-toggle-btn[data-emotion="Neutral"].enabled:hover {
+    background: var(--emotion-neutral);
+    box-shadow: 0 8px 25px rgba(100, 116, 139, 0.4);
+  }
+
+  .button-group {
     display: flex;
-    gap: 12px;
+    gap: 16px;
     flex-wrap: wrap;
   }
   
   .toggle-button, .retry-button {
-    padding: 10px 20px;
+    padding: 12px 24px;
     border: none;
-    border-radius: 8px;
+    border-radius: 12px;
     cursor: pointer;
-    font-size: 0.95em;
     font-weight: 600;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    font-size: 0.95em;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .toggle-button::before, .retry-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.5s ease;
+  }
+  
+  .toggle-button:hover::before, .retry-button:hover::before {
+    left: 100%;
   }
   
   .toggle-button.active {
-    background: linear-gradient(135deg, var(--color-success), #229954);
+    background: linear-gradient(135deg, var(--color-success), #059669);
     color: white;
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.3);
   }
   
+  .toggle-button.active:hover {
+    background: linear-gradient(135deg, #059669, #047857);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+  }
+  
+  .toggle-button.inactive {
+    background: linear-gradient(135deg, var(--color-warning), #d97706);
+    color: white;
+    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.3);
+  }
+  
+  .toggle-button.inactive:hover {
+    background: linear-gradient(135deg, #d97706, #b45309);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4);
+  }
+  
+  .retry-button {
+    background: linear-gradient(135deg, var(--color-error), #dc2626);
+    color: white;
+    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.3);
+  }
+  
+  .retry-button:hover {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);  }
+  /* Main content layout - side by side */
+  .main-content {
+    display: flex;
+    gap: 20px;
+    width: 100%;
+    align-items: flex-start;
+    justify-content: center;
+  }
+
+  .video-container {
+    position: relative;
+    flex: 0 0 75%;
+    max-width: 900px;
+    aspect-ratio: 4 / 3;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    background: #000;
+  }
+
+  /* Probabilities sidebar - compact */
+  .probabilities-sidebar {
+    flex: 0 0 23%;
+    max-width: 280px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 0;
+  }
+
+  /* Update probabilities section for sidebar - compact */
+  .probabilities-sidebar .probabilities-section {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .probabilities-sidebar .probabilities-title {
+    font-size: 1em;
+    font-weight: 700;
+    color: var(--color-primary);
+    margin-bottom: 12px;
+    text-align: center;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .probabilities-sidebar .probabilities-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .probabilities-sidebar .probability-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 0.85em;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+  }
+
+  .probabilities-sidebar .probability-label {
+    flex: 1;
+    text-align: left;
+    font-size: 0.8em;
+  }
+
+  .probabilities-sidebar .probability-value {
+    font-size: 0.8em;
+    font-weight: 700;
+    min-width: 45px;
+    text-align: right;
+  }
+
+  /* Update emotion filters for sidebar - compact */
+  .probabilities-sidebar .emotion-filters {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .probabilities-sidebar .filters-title {
+    font-size: 1em;
+    font-weight: 700;
+    color: var(--color-primary);
+    margin-bottom: 12px;
+    text-align: center;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .probabilities-sidebar .emotion-toggle-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .probabilities-sidebar .emotion-toggle-btn {
+    padding: 6px 8px;
+    border-radius: 6px;
+    text-align: center;
+    font-size: 0.75em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+  }
+
+  /* Legacy video container for backwards compatibility */
+  .emotion-monitor > .video-container {
+    position: relative;
+    width: 100%;
+    max-width: 640px;
+    aspect-ratio: 4 / 3;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    background: #000;
+  }
+
+  .webcam,
+  .overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .webcam {
+    z-index: 1;
+  }
+
+  .overlay {
+    z-index: 2;
+  }
+
+  .loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.8), rgba(44, 62, 80, 0.8));
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 3;
+    color: white;
+    border-radius: var(--border-radius);
+  }
+
+  .loading-spinner {
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-top: 4px solid var(--color-secondary);
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+  }
+
+  .loading-text {
+    font-size: 1.2em;
+    font-weight: 600;
+    text-align: center;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  }
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* Responsive Design */
+  @media (max-width: 1024px) {
+    .main-content {
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .video-container {
+      flex: none;
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .probabilities-sidebar {
+      flex: none;
+      width: 100%;
+      max-width: 100%;
+      flex-direction: row;
+      gap: 16px;
+    }
+
+    .probabilities-sidebar .probabilities-section,
+    .probabilities-sidebar .emotion-filters {
+      flex: 1;
+    }
+
+    .probabilities-sidebar .emotion-toggle-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  @media (max-width: 768px) {
+    .emotion-monitor {
+      padding: 15px;
+      margin: 10px;
+      max-width: 95%;
+    }
+
+    .status-bar {
+      padding: 15px;
+    }
+
+    .status-header {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .button-group {
+      justify-content: center;
+    }
+
+    .main-content {
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .probabilities-sidebar {
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .probabilities-sidebar .probabilities-section,
+    .probabilities-sidebar .emotion-filters {
+      padding: 12px;
+    }
+
+    .probabilities-list {
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 6px;
+    }
+
+    .emotion-toggle-grid {
+      grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+      gap: 6px;
+    }
+
+    .emotion-toggle-btn {
+      padding: 6px 8px;
+      font-size: 0.8em;
+    }
+
+    .probabilities-sidebar .emotion-toggle-btn {
+      padding: 6px 8px;
+      font-size: 0.75em;
+    }
+
+    .top-emotion {
+      font-size: 1.1em !important;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .emotion-monitor {
+      padding: 10px;
+      margin: 5px;
+      max-width: 98%;
+    }
+
+    .status-bar {
+      padding: 12px;
+      gap: 12px;
+    }
+
+    .probabilities-list {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .emotion-toggle-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .probability-item {
+      padding: 6px 8px;
+      font-size: 0.85em;
+    }
+
+    .toggle-button,
+    .retry-button {
+      padding: 8px 16px;
+      font-size: 0.9em;
+    }
+  }
   .toggle-button.active:hover {
     background: linear-gradient(135deg, #229954, var(--color-success));
     transform: translateY(-1px);
