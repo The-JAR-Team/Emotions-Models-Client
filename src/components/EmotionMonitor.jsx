@@ -3,6 +3,9 @@ import useFaceMesh from '../hooks/useFaceMesh';
 import { initializeOnnxModel, predictEngagement, getCurrentModelInfo } from '../services/emotionOnnxService'; // Changed predictEmotion to predictEngagement
 import '../styles/EmotionMonitor.css';
 
+// Constant to enable/disable John Normalization
+const ENABLE_JOHN_NORMALIZATION = true;
+
 const EmotionMonitor = () => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -14,6 +17,8 @@ const EmotionMonitor = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [onnxModelReady, setOnnxModelReady] = useState(false);
   const [onnxStatus, setOnnxStatus] = useState('Loading ONNX model...');
+  // State for John Normalization
+  const [johnNormalizationEnabled, setJohnNormalizationEnabled] = useState(ENABLE_JOHN_NORMALIZATION);
   // Store raw class probabilities for status display
   const [allProbabilities, setAllProbabilities] = useState([]);
   // List of emotions to ignore when selecting top result
@@ -110,8 +115,47 @@ const EmotionMonitor = () => {
       if (now - lastInferenceTimeRef.current >= 1500) {
         lastInferenceTimeRef.current = now;
         console.log(`[${new Date().toISOString()}] Running inference...`);
+
+        let landmarksForPrediction = landmarks;
+        let widthForPrediction = videoWidth;
+        let heightForPrediction = videoHeight;
+
+        if (johnNormalizationEnabled) {
+          // Calculate tight bounding box of the face in pixel coordinates
+          let faceBoxMinX = Infinity, faceBoxMinY = Infinity;
+          let faceBoxMaxX = -Infinity, faceBoxMaxY = -Infinity;
+          landmarks.forEach(lm => {
+            const px = lm.x * videoWidth;
+            const py = lm.y * videoHeight;
+            faceBoxMinX = Math.min(faceBoxMinX, px);
+            faceBoxMinY = Math.min(faceBoxMinY, py);
+            faceBoxMaxX = Math.max(faceBoxMaxX, px);
+            faceBoxMaxY = Math.max(faceBoxMaxY, py);
+          });
+
+          const roiX = faceBoxMinX;
+          const roiY = faceBoxMinY;
+          const roiWidth = faceBoxMaxX - faceBoxMinX;
+          const roiHeight = faceBoxMaxY - faceBoxMinY;
+
+          // Check for valid ROI dimensions
+          if (roiWidth > 0 && roiHeight > 0) {
+            landmarksForPrediction = landmarks.map(lm => ({
+              x: (lm.x * videoWidth - roiX) / roiWidth,
+              y: (lm.y * videoHeight - roiY) / roiHeight,
+              z: lm.z // Pass z through
+            }));
+            widthForPrediction = roiWidth;
+            heightForPrediction = roiHeight;
+            console.log(`[${new Date().toISOString()}] John Normalization applied. ROI: x:${roiX.toFixed(0)}, y:${roiY.toFixed(0)}, w:${roiWidth.toFixed(0)}, h:${roiHeight.toFixed(0)}`);
+          } else {
+            console.log(`[${new Date().toISOString()}] John Normalization skipped: Invalid ROI dimensions (w:${roiWidth.toFixed(0)}, h:${roiHeight.toFixed(0)})`);
+            // Fallback to original landmarks and dimensions (already set by default)
+          }
+        }
+
         try {
-          const prediction = await predictEngagement(landmarks, videoWidth, videoHeight);
+          const prediction = await predictEngagement(landmarksForPrediction, widthForPrediction, heightForPrediction);
           console.log(`[${new Date().toISOString()}] Prediction result:`, prediction);
         if (prediction) {
           setDetectedEmotion(prediction.emotion);
