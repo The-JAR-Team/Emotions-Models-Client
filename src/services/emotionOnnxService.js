@@ -1,6 +1,6 @@
 import * as ort from 'onnxruntime-web';
 import { getOnnxModelUri } from './onnxModelLoader';
-import { fetchModelFromHooks } from './onnxHooksFallback';
+// Removed fetchModelFromHooks fallback since models are served locally
 import { getActiveModelConfig, getModelPaths, getModelConfig as getModelConfigUtil, setActiveModel as setActiveModelUtil, getAllModelConfigs as getAllModelConfigsUtil } from '../config/modelConfig'; // Renamed imports to avoid conflict
 
 // Constant to enable/disable FERPlus specific normalization
@@ -30,16 +30,8 @@ export const initializeOnnxModel = async (modelId = null) => {
   ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/';
 
   try {
-    let targetModelId = modelId;
-    // If no modelId is provided, try to default to a FERPlus model if available
-    if (!targetModelId) {
-        const allConfigs = getAllModelConfigsUtil();
-        const ferplusModel = allConfigs.find(m => m.filename === 'emotion_transformer_small.onnx');
-        if (ferplusModel) {
-            targetModelId = ferplusModel.id;
-            console.log(`Defaulting to FERPlus model: ${targetModelId}`);
-        }
-    }
+    // Determine which model to load: explicit modelId or the active default
+    let targetModelId = modelId || getActiveModelConfig().id;
 
     if (targetModelId) {
       if (!setActiveModelUtil(targetModelId)) {
@@ -83,23 +75,6 @@ export const initializeOnnxModel = async (modelId = null) => {
       lastError = error;
     }
     
-    if (!modelLoaded) {
-      console.log("Attempting to load model using fetchModelFromHooks...");
-      try {
-        const hooksModelUri = await fetchModelFromHooks(currentModelConfig.filename);
-        if (hooksModelUri) {
-          onnxSession = await ort.InferenceSession.create(hooksModelUri, options);
-          console.log('ONNX model loaded successfully via fetchModelFromHooks.');
-          URL.revokeObjectURL(hooksModelUri); // Clean up blob URL
-          modelLoaded = true;
-        } else {
-          console.warn('fetchModelFromHooks did not return a URI.');
-        }
-      } catch (error) {
-        console.warn(`Failed to load model from fetchModelFromHooks (blob URL): ${error.message}`);
-        lastError = error;
-      }
-    }
     
     if (!modelLoaded) {
       console.log("Attempting to load model from direct paths...");
@@ -303,27 +278,9 @@ export const predictEngagement = async (landmarks, videoWidth, videoHeight) => {
   // Preprocess landmarks: this now receives videoWidth and videoHeight for FER+ norm
   const processedInput = preprocessLandmarks(landmarks, videoWidth, videoHeight);
 
-  const { SEQ_LEN, NUM_LANDMARKS, NUM_COORDS } = getModelDimensions();
-  const tensorShape = [1, SEQ_LEN, NUM_LANDMARKS, NUM_COORDS];
-  
-  // If the model expects [batch_size, num_landmarks, num_coords] (e.g. [1, 478, 3])
-  // and SEQ_LEN is 1, adjust shape. The FERPlus model from script expects [1, 478, 3]
-  let finalShape = tensorShape;
-  if (currentModelConfig.id === 'ferplus_transformer_small_v1' || currentModelConfig.filename === 'emotion_transformer_small.onnx') {
-      if (SEQ_LEN === 1) { // Common case for real-time single frame prediction
-          finalShape = [1, NUM_LANDMARKS, NUM_COORDS];
-      } else {
-          // If SEQ_LEN > 1, the shape [1, SEQ_LEN, NUM_LANDMARKS, NUM_COORDS] might be for models expecting sequences.
-          // The provided Python model seems to take (1, NUM_LANDMARKS, LANDMARK_DIM)
-          // For now, assuming SEQ_LEN=1 for this specific model.
-          // If your model truly expects a sequence like [1, N, 478, 3], this needs adjustment.
-          console.warn(`Model ${currentModelConfig.id} is assumed to take [1, NUM_LANDMARKS, NUM_COORDS], but SEQ_LEN is ${SEQ_LEN}. Adjusting shape assumption.`);
-          finalShape = [1, NUM_LANDMARKS, NUM_COORDS]; // Overriding for FERPlus model
-      }
-  }
-
-
-  const tensor = new ort.Tensor('float32', processedInput, finalShape);
+  // Use the configured input tensor shape from modelConfig (e.g., [1, 478, 3])
+  const inputShape = currentModelConfig.inputFormat.tensorShape;
+  const tensor = new ort.Tensor('float32', processedInput, inputShape);
   const feeds = { [onnxSession.inputNames[0]]: tensor };
 
   try {

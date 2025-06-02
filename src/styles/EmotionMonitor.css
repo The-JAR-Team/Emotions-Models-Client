@@ -20,7 +20,8 @@
     border: none;
     border-radius: var(--border-radius);
     box-shadow: var(--shadow);
-    max-width: 90%;
+    width: 100%;
+    max-width: 1200px; /* Increased container width for larger display */
     margin: 20px auto;
     min-height: 600px;
   }
@@ -44,6 +45,21 @@
     align-items: center;
     gap: 16px;
   }
+/* Model selector styling */
+.model-loader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.model-loader select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.model-loader .error-message {
+  margin-left: 8px;
+  color: var(--color-error);
+  font-size: 0.9em;
+}
   
   .status-text {
     display: flex;

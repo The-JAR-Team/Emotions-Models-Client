@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import useFaceMesh from '../hooks/useFaceMesh';
-import { initializeOnnxModel, predictEngagement, getCurrentModelInfo } from '../services/emotionOnnxService'; // Changed predictEmotion to predictEngagement
+import { initializeOnnxModel, predictEngagement, getCurrentModelInfo, getAllModels, switchModel } from '../services/emotionOnnxService'; // Added model loader functions
 import '../styles/EmotionMonitor.css';
 
 // Constant to enable/disable John Normalization
@@ -19,8 +19,13 @@ const EmotionMonitor = () => {
   const [onnxStatus, setOnnxStatus] = useState('Loading ONNX model...');
   // State for John Normalization
   const [johnNormalizationEnabled, setJohnNormalizationEnabled] = useState(ENABLE_JOHN_NORMALIZATION);
+  // State for model loader
+  const [availableModels, setAvailableModels] = useState([]);
+  const [selectedModel, setSelectedModel] = useState(getCurrentModelInfo()?.id || '');
   // Store raw class probabilities for status display
   const [allProbabilities, setAllProbabilities] = useState([]);
+  // Grab current model info (may be null on failure)
+  const modelInfo = getCurrentModelInfo();
   // List of emotions to ignore when selecting top result
   const [ignoredEmotions, setIgnoredEmotions] = useState([]);
   // Toggle ignore for a given emotion label
@@ -44,6 +49,7 @@ const EmotionMonitor = () => {
         setOnnxStatus('Starting ONNX model initialization...');
         const initialized = await initializeOnnxModel();
         setOnnxModelReady(initialized);
+        setSelectedModel(getCurrentModelInfo()?.id || '');
         if (!initialized) {
           setOnnxStatus('Failed to initialize ONNX model');
           setErrorMessage("Failed to initialize ONNX model");
@@ -58,7 +64,19 @@ const EmotionMonitor = () => {
       }
     };
     initModel();
+    // Load available models
+    setAvailableModels(getAllModels() || []);
   }, []);
+
+  // Handle model selection
+  const handleModelChange = async (e) => {
+    const modelId = e.target.value;
+    setSelectedModel(modelId);
+    setOnnxStatus(`Loading model ${modelId}...`);
+    const ok = await switchModel(modelId);
+    setOnnxModelReady(ok);
+    setOnnxStatus(ok ? `Model loaded: ${getCurrentModelInfo().name}` : `Failed to load model: ${modelId}`);
+  };
 
   // Handle FaceMesh results
   const handleResults = async (results) => {
@@ -300,6 +318,20 @@ const EmotionMonitor = () => {
     <div className="emotion-monitor">
       <div className="status-bar">
         <div className="status-header">
+          <div className="model-loader">
+            <label htmlFor="model-select">Model: </label>
+            <select
+              id="model-select"
+              value={selectedModel}
+              onChange={handleModelChange}
+              disabled={!onnxModelReady || !modelInfo}
+            >
+              {availableModels.map(m => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
+            {!modelInfo && <span className="error-message">No model loaded</span>}
+          </div>
           <div className="status-text">
             <span>FaceMesh: {faceMeshStatus}</span>
             <span>ONNX: {onnxStatus}</span>
@@ -334,12 +366,12 @@ const EmotionMonitor = () => {
         )}
 
         {/* Styled emotion filter buttons */}
-        {allProbabilities.length > 0 && (
+        {allProbabilities.length > 0 && modelInfo && (
           <div className="emotion-filters">
             <div className="filters-title">Emotion Filters</div>
             <div className="emotion-toggle-grid">
-              {Object.keys(getCurrentModelInfo().outputFormat.classLabels).map(key => {
-                const label = getCurrentModelInfo().outputFormat.classLabels[key];
+              {Object.keys(modelInfo.outputFormat.classLabels).map(key => {
+                const label = modelInfo.outputFormat.classLabels[key];
                 const isIgnored = ignoredEmotions.includes(label);
                 return (
                   <div
