@@ -112,7 +112,7 @@ const EmotionMonitor = () => {
     if (isActive && landmarks && onnxModelReady) {
       const now = Date.now();
       // Only run inference every 1.5 seconds (1500 ms)
-      if (now - lastInferenceTimeRef.current >= 1500) {
+      if (now - lastInferenceTimeRef.current >= 1000) {
         lastInferenceTimeRef.current = now;
         console.log(`[${new Date().toISOString()}] Running inference...`);
 
