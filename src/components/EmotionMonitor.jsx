@@ -4,7 +4,7 @@ import { initializeOnnxModel, predictEngagement, getCurrentModelInfo } from '../
 import '../styles/EmotionMonitor.css';
 
 // Constant to enable/disable John Normalization
-const ENABLE_JOHN_NORMALIZATION = true;
+const ENABLE_JOHN_NORMALIZATION = false;
 
 const EmotionMonitor = () => {
   const videoRef = useRef(null);

@@ -3,16 +3,14 @@ import { getOnnxModelUri } from './onnxModelLoader';
 import { fetchModelFromHooks } from './onnxHooksFallback';
 import { getActiveModelConfig, getModelPaths, getModelConfig as getModelConfigUtil, setActiveModel as setActiveModelUtil, getAllModelConfigs as getAllModelConfigsUtil } from '../config/modelConfig'; // Renamed imports to avoid conflict
 
-// Reference landmark indices for distance normalization (specific to this service's normalization logic)
-// These might differ from MediaPipe's own indices if custom normalization is applied.
-// The Python script uses: Nose: 1, Left Eye Inner: 133, Right Eye Inner: 362 for its normalization.
-// This service uses: Nose: 1, Left Eye Outer: 33, Right Eye Outer: 263.
-// Ensure this matches the preprocessing expected by the model or adjust.
-// For the model from the Python script, its internal normalization uses 1, 133, 362.
-// If preprocessLandmarks here is used, it should align.
-const NOSE_TIP_IDX = 1; // As per this service's applyDistanceNormalization
-const LEFT_EYE_OUTER_IDX = 33; // As per this service's applyDistanceNormalization
-const RIGHT_EYE_OUTER_IDX = 263; // As per this service's applyDistanceNormalization
+// Constant to enable/disable FERPlus specific normalization
+const ENABLE_FERPLUS_NORMALIZATION = true;
+
+// Landmark indices based on the Python training script for FERPlus normalization
+// These are indices into the 478 landmarks array
+const FERPLUS_NOSE_TIP_IDX = 1;         // Nose tip
+const FERPLUS_LEFT_EYE_INNER_IDX = 133; // Left eye inner corner
+const FERPLUS_RIGHT_EYE_INNER_IDX = 362;// Right eye inner corner
 
 let onnxSession = null;
 let currentModelConfig = null; // Stores the config of the currently loaded model
@@ -32,20 +30,30 @@ export const initializeOnnxModel = async (modelId = null) => {
   ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/';
 
   try {
-    if (modelId) {
-      if (!setActiveModelUtil(modelId)) {
-        console.error(`Failed to set active model to ${modelId}. It might not exist.`);
-        // Fallback to current active or default if setting fails
-        currentModelConfig = getActiveModelConfig();
+    let targetModelId = modelId;
+    // If no modelId is provided, try to default to a FERPlus model if available
+    if (!targetModelId) {
+        const allConfigs = getAllModelConfigsUtil();
+        const ferplusModel = allConfigs.find(m => m.filename === 'emotion_transformer_small.onnx');
+        if (ferplusModel) {
+            targetModelId = ferplusModel.id;
+            console.log(`Defaulting to FERPlus model: ${targetModelId}`);
+        }
+    }
+
+    if (targetModelId) {
+      if (!setActiveModelUtil(targetModelId)) {
+        console.error(`Failed to set active model to ${targetModelId}. It might not exist.`);
+        currentModelConfig = getActiveModelConfig(); // Fallback
       } else {
-        currentModelConfig = getModelConfigUtil(modelId);
+        currentModelConfig = getModelConfigUtil(targetModelId);
       }
     } else {
-      currentModelConfig = getActiveModelConfig();
+      currentModelConfig = getActiveModelConfig(); // Fallback to current active or default
     }
 
     if (!currentModelConfig) {
-        throw new Error("No model configuration found.");
+        throw new Error("No model configuration found or could be set.");
     }
     
     console.log(`Initializing ONNX model: ${currentModelConfig.name} (ID: ${currentModelConfig.id})`);
@@ -126,117 +134,101 @@ export const initializeOnnxModel = async (modelId = null) => {
   }
 };
 
-export const preprocessLandmarks = (landmarks) => {
+// FERPlus specific normalization (ported from the Python script)
+const applyFerPlusNormalization = (landmarksArray, imageWidth, imageHeight) => {
+  if (!landmarksArray || landmarksArray.length === 0) return landmarksArray;
+
+  // landmarksArray is expected to be [NUM_LANDMARKS][NUM_COORDS] for a single frame
+  // The Python script processes one image (frame) at a time.
+  // landmarks input to this function should be the 3D world coordinates from MediaPipe,
+  // scaled by image width/height as in the python script's extract_landmarks_from_image
+  // before normalization.
+
+  const landmarksAbs3d = landmarksArray.map(lm => ({
+    x: lm.x * imageWidth,
+    y: lm.y * imageHeight,
+    z: lm.z * imageWidth // Python script uses image_width for Z scaling
+  }));
+
+  if (landmarksAbs3d.length <= Math.max(FERPLUS_NOSE_TIP_IDX, FERPLUS_LEFT_EYE_INNER_IDX, FERPLUS_RIGHT_EYE_INNER_IDX)) {
+    console.warn("Not enough landmarks for FERPlus normalization.");
+    return landmarksArray; // Return original if not enough landmarks
+  }
+
+  const noseTip3d = { ...landmarksAbs3d[FERPLUS_NOSE_TIP_IDX] };
+
+  const landmarksCentered3d = landmarksAbs3d.map(lm => ({
+    x: lm.x - noseTip3d.x,
+    y: lm.y - noseTip3d.y,
+    z: lm.z - noseTip3d.z
+  }));
+
+  const pLeftEyeInnerXY = { x: landmarksCentered3d[FERPLUS_LEFT_EYE_INNER_IDX].x, y: landmarksCentered3d[FERPLUS_LEFT_EYE_INNER_IDX].y };
+  const pRightEyeInnerXY = { x: landmarksCentered3d[FERPLUS_RIGHT_EYE_INNER_IDX].x, y: landmarksCentered3d[FERPLUS_RIGHT_EYE_INNER_IDX].y };
+
+  const dx = pLeftEyeInnerXY.x - pRightEyeInnerXY.x;
+  const dy = pLeftEyeInnerXY.y - pRightEyeInnerXY.y;
+  let interOcularDistance = Math.sqrt(dx * dx + dy * dy);
+
+  if (interOcularDistance < 1e-6) {
+    console.warn("Inter-ocular distance is too small, using fallback.");
+    interOcularDistance = imageWidth / 4.0; // Fallback from Python script
+    if (interOcularDistance < 1e-6) interOcularDistance = 1.0; // Further fallback
+  }
+
+  const landmarksNormalized3d = landmarksCentered3d.map(lm => ({
+    x: lm.x / interOcularDistance,
+    y: lm.y / interOcularDistance,
+    z: lm.z / interOcularDistance
+  }));
+
+  return landmarksNormalized3d; // This is an array of {x,y,z} objects
+};
+
+export const preprocessLandmarks = (landmarks, videoWidth, videoHeight) => {
   // Convert single-frame landmarks (array of objects) into an array of frames
   const frames = Array.isArray(landmarks) && landmarks.length > 0 && typeof landmarks[0].x === 'number'
-    ? [landmarks]
+    ? [landmarks] // Input is a single frame of landmarks
     : Array.isArray(landmarks)
-      ? landmarks
+      ? landmarks // Input is already an array of frames (though typically we process one by one)
       : [];
 
   const { SEQ_LEN, NUM_LANDMARKS, NUM_COORDS } = getModelDimensions();
-  const processedFrames = [];
+  const processedFramesData = []; // This will hold the flat Float32Array data
 
   for (let i = 0; i < SEQ_LEN; i++) {
-    const frame = frames[i] || [];
-    // Initialize all coords to -1
-    const frameArray = Array.from({ length: NUM_LANDMARKS }, () => Array(NUM_COORDS).fill(-1.0));
-    // Fill with actual landmark coords
-    for (let j = 0; j < Math.min(frame.length, NUM_LANDMARKS); j++) {
-      const lm = frame[j];
+    let frameLandmarks = frames[i] || []; // Get current frame's landmarks or empty if no frame
+
+    // Apply FERPlus normalization if enabled and model requires it
+    if (ENABLE_FERPLUS_NORMALIZATION && currentModelConfig && currentModelConfig.normalizationType === 'ferplus') {
+        console.log("Applying FERPlus Normalization in preprocessLandmarks");
+        // Ensure frameLandmarks are in the {x,y,z} format expected by applyFerPlusNormalization
+        // The landmarks from MediaPipe are already in this format.
+        // videoWidth and videoHeight are passed for scaling inside applyFerPlusNormalization
+        frameLandmarks = applyFerPlusNormalization(frameLandmarks, videoWidth, videoHeight);
+    } else if (currentModelConfig && currentModelConfig.inputFormat.requiresNormalization) {
+        // Apply old normalization if configured and FERPlus is not active for this model
+        // This part might need review if applyDistanceNormalization is different
+        console.log("Applying legacy distance normalization");
+        // frameLandmarks = applyDistanceNormalization(frameLandmarks); // Assuming applyDistanceNormalization takes similar input
+    }
+
+
+    // Initialize flat array for the current frame's landmark data
+    const frameArray = new Float32Array(NUM_LANDMARKS * NUM_COORDS).fill(-1.0);
+
+    for (let j = 0; j < Math.min(frameLandmarks.length, NUM_LANDMARKS); j++) {
+      const lm = frameLandmarks[j];
       if (lm && typeof lm.x === 'number' && typeof lm.y === 'number' && typeof lm.z === 'number') {
-        frameArray[j][0] = lm.x;
-        frameArray[j][1] = lm.y;
-        frameArray[j][2] = lm.z;
+        frameArray[j * NUM_COORDS + 0] = lm.x;
+        frameArray[j * NUM_COORDS + 1] = lm.y;
+        frameArray[j * NUM_COORDS + 2] = lm.z;
       }
     }
-    processedFrames.push(frameArray);
+    processedFramesData.push(...frameArray); // Add current frame's flat data
   }
-
-  const activeConfig = currentModelConfig || getActiveModelConfig();
-  let finalFrames = processedFrames;
-  if (activeConfig.inputFormat.requiresNormalization) {
-    finalFrames = applyDistanceNormalization(processedFrames);
-  }
-
-  // Flatten to 1D Float32Array
-  const flat = finalFrames.flat(2);
-  return new Float32Array(flat);
-};
-
-export const applyDistanceNormalization = (landmarksFrames) => {
-  // This normalization is specific to this service.
-  // It uses NOSE_TIP_IDX=1, LEFT_EYE_OUTER_IDX=33, RIGHT_EYE_OUTER_IDX=263.
-  // The Python training script uses different landmarks for normalization:
-  // Nose: 1, Left Eye Inner: 133, Right Eye Inner: 362.
-  // This discrepancy can lead to poor model performance if not aligned.
-  const normalizedFrames = [];
-  for (let frameIdx = 0; frameIdx < landmarksFrames.length; frameIdx++) {
-    const frameLandmarks = landmarksFrames[frameIdx];
-    const isEntireFrameInvalid = frameLandmarks.every(coords => coords.every(val => val === -1.0));
-    if (isEntireFrameInvalid) {
-      normalizedFrames.push(frameLandmarks);
-      continue;
-    }
-    try {
-      const centerLandmarkCoords = frameLandmarks[NOSE_TIP_IDX];
-      const p1Coords = frameLandmarks[LEFT_EYE_OUTER_IDX];
-      const p2Coords = frameLandmarks[RIGHT_EYE_OUTER_IDX];
-      
-      const isInvalid = 
-        centerLandmarkCoords.some(val => val === -1.0) ||
-        p1Coords.some(val => val === -1.0) ||
-        p2Coords.some(val => val === -1.0);
-      
-      if (isInvalid) {
-        normalizedFrames.push(frameLandmarks);
-        continue;
-      }
-      
-      const translatedLandmarks = frameLandmarks.map(coords => {
-        if (coords.some(val => val === -1.0)) return coords;
-        return [
-          coords[0] - centerLandmarkCoords[0],
-          coords[1] - centerLandmarkCoords[1],
-          coords[2] - centerLandmarkCoords[2]
-        ];
-      });
-      
-      const scaleDistance = Math.sqrt(
-        Math.pow(p1Coords[0] - p2Coords[0], 2) +
-        Math.pow(p1Coords[1] - p2Coords[1], 2)
-      );
-      
-      let scaledLandmarks;
-      if (scaleDistance < 1e-6) {
-        scaledLandmarks = translatedLandmarks;
-      } else {
-        scaledLandmarks = translatedLandmarks.map(coords => {
-          if (coords.some(val => val === -1.0)) return coords;
-          const distanceFromCenter = Math.sqrt(Math.pow(coords[0], 2) + Math.pow(coords[1], 2) + Math.pow(coords[2], 2));
-          const distanceThreshold = 5.0 * scaleDistance;
-          if (distanceFromCenter > distanceThreshold) {
-            const scaleFactor = distanceThreshold / distanceFromCenter;
-            return [
-              coords[0] * scaleFactor / scaleDistance,
-              coords[1] * scaleFactor / scaleDistance,
-              coords[2] * scaleFactor / scaleDistance
-            ];
-          }
-          return [
-            coords[0] / scaleDistance,
-            coords[1] / scaleDistance,
-            coords[2] / scaleDistance
-          ];
-        });
-      }
-      normalizedFrames.push(scaledLandmarks);
-    } catch (error) {
-      console.error('Error normalizing landmarks in applyDistanceNormalization:', error);
-      normalizedFrames.push(frameLandmarks);
-    }
-  }
-  return normalizedFrames;
+  // Create a single Float32Array for all frames
+  return new Float32Array(processedFramesData);
 };
 
 export const mapScoreToClassDetails = (score, classLabels = null) => {
@@ -302,182 +294,128 @@ export const mapClassificationLogitsToClassDetails = (logits, classLabels = null
   return details;
 };
 
-export const predictEngagement = async (landmarksData) => {
+export const predictEngagement = async (landmarks, videoWidth, videoHeight) => { // Added videoWidth, videoHeight
+  if (!onnxSession || !currentModelConfig) {
+    console.error('ONNX session or model config not initialized.');
+    return null;
+  }
+
+  // Preprocess landmarks: this now receives videoWidth and videoHeight for FER+ norm
+  const processedInput = preprocessLandmarks(landmarks, videoWidth, videoHeight);
+
+  const { SEQ_LEN, NUM_LANDMARKS, NUM_COORDS } = getModelDimensions();
+  const tensorShape = [1, SEQ_LEN, NUM_LANDMARKS, NUM_COORDS];
+  
+  // If the model expects [batch_size, num_landmarks, num_coords] (e.g. [1, 478, 3])
+  // and SEQ_LEN is 1, adjust shape. The FERPlus model from script expects [1, 478, 3]
+  let finalShape = tensorShape;
+  if (currentModelConfig.id === 'ferplus_transformer_small_v1' || currentModelConfig.filename === 'emotion_transformer_small.onnx') {
+      if (SEQ_LEN === 1) { // Common case for real-time single frame prediction
+          finalShape = [1, NUM_LANDMARKS, NUM_COORDS];
+      } else {
+          // If SEQ_LEN > 1, the shape [1, SEQ_LEN, NUM_LANDMARKS, NUM_COORDS] might be for models expecting sequences.
+          // The provided Python model seems to take (1, NUM_LANDMARKS, LANDMARK_DIM)
+          // For now, assuming SEQ_LEN=1 for this specific model.
+          // If your model truly expects a sequence like [1, N, 478, 3], this needs adjustment.
+          console.warn(`Model ${currentModelConfig.id} is assumed to take [1, NUM_LANDMARKS, NUM_COORDS], but SEQ_LEN is ${SEQ_LEN}. Adjusting shape assumption.`);
+          finalShape = [1, NUM_LANDMARKS, NUM_COORDS]; // Overriding for FERPlus model
+      }
+  }
+
+
+  const tensor = new ort.Tensor('float32', processedInput, finalShape);
+  const feeds = { [onnxSession.inputNames[0]]: tensor };
+
   try {
-    console.log('predictEngagement: raw landmarksData length:', landmarksData.length, landmarksData);
-    if (!onnxSession) {
-      console.log("ONNX session not initialized. Attempting to initialize...");
-      const initialized = await initializeOnnxModel(); // Uses current active model ID
-      if (!initialized) throw new Error('ONNX model initialization failed');
-    }
-    
-    const activeConfig = currentModelConfig || getActiveModelConfig(); // Ensure we have the latest active config
-    const { SEQ_LEN, NUM_LANDMARKS, NUM_COORDS } = getModelDimensions(); // Uses currentModelConfig
-    
-    const preprocessedLandmarks = preprocessLandmarks(landmarksData); // Uses currentModelConfig via getModelDimensions
-    console.log('predictEngagement: preprocessedLandmarks first 30 values:', preprocessedLandmarks.slice ? preprocessedLandmarks.slice(0, 30) : preprocessedLandmarks);
-    console.log('predictEngagement: input tensor shape:', activeConfig.inputFormat.tensorShape);
-    if (!preprocessedLandmarks) throw new Error('Failed to preprocess landmarks');
-    
-    const inputTensor = new ort.Tensor('float32', preprocessedLandmarks, activeConfig.inputFormat.tensorShape);
-    const feeds = { [onnxSession.inputNames[0]]: inputTensor };
     const results = await onnxSession.run(feeds);
-    
-    // --- Custom logic for 'emotion_transformer_v1' ---
-    if (activeConfig.id === "emotion_transformer_v1") {
-      // Use named outputs for the transformer model
-      const logitsOutputName = activeConfig.outputFormat.outputNames.logits; // 'logits'
-      const logits = results[logitsOutputName]?.data;
+    const outputTensor = results[onnxSession.outputNames[0]]; // Assuming first output is logits
+    const probabilities = outputTensor.data; // This should be the raw logits/probabilities
 
-      if (!logits) {
-        console.error(`Output '${logitsOutputName}' not found in model results for ${activeConfig.id}. Available:`, Object.keys(results));
-        throw new Error(`Output '${logitsOutputName}' not found`);
-      }
-      
-      const predictionDetailsCls = mapClassificationLogitsToClassDetails(
-        Array.from(logits), activeConfig.outputFormat.classLabels
-      );
-      
-      // Embedding is available if needed: results[activeConfig.outputFormat.outputNames[1]]?.data
-      
-      return {
-        // Include emotion field for UI
-        emotion: predictionDetailsCls.name,
-        score: predictionDetailsCls.probabilities ? Math.max(...predictionDetailsCls.probabilities) : 0,
-        name: predictionDetailsCls.name,
-        index: predictionDetailsCls.index,
-        classification_head_name: predictionDetailsCls.name,
-        classification_head_index: predictionDetailsCls.index,
-        classification_head_probabilities: predictionDetailsCls.probabilities,
-        raw_classification_logits: predictionDetailsCls.raw_logits,
-        model_used: activeConfig.name,
-        model_id: activeConfig.id
-      };
-    } 
-    // --- Fallback to existing logic for other models ---
-    else if (activeConfig.outputFormat.outputType === 'classification' && onnxSession.outputNames.length >= 2) {
-      let actualRegressionScores, actualClassificationLogits;
-      // This logic is for models outputting regression then classification, or specific named outputs
-      if (activeConfig.id === 'v4_v2' && activeConfig.outputFormat.outputNames && activeConfig.outputFormat.outputNames.length >= 2) {
-        actualRegressionScores = results[activeConfig.outputFormat.outputNames[0]]?.data;
-        actualClassificationLogits = results[activeConfig.outputFormat.outputNames[1]]?.data;
-      } else { // Positional for other dual-output models
-        actualRegressionScores = results[onnxSession.outputNames[0]]?.data;
-        actualClassificationLogits = results[onnxSession.outputNames[1]]?.data;
-      }
+    // The FERPlus model from script has two outputs: 'logits' and 'embedding'
+    // We are interested in 'logits' for classification
+    // outputNames: ["logits", "embedding"]
 
-      if (!actualRegressionScores || !actualClassificationLogits) {
-          throw new Error("Expected outputs not found for dual-output classification model.");
-      }
+    let classificationProbabilities = probabilities; // Default to the first output's data
 
-      const rawRegressionScore = actualRegressionScores[0];
-      const regressionScore = Math.max(0.0, Math.min(1.0, rawRegressionScore));
-      const predictionDetailsReg = mapScoreToClassDetails(regressionScore, activeConfig.outputFormat.classLabels);
-      const predictionDetailsCls = mapClassificationLogitsToClassDetails(
-        Array.from(actualClassificationLogits), activeConfig.outputFormat.classLabels
-      );
-      
-      return {
-        score: regressionScore,
-        name: predictionDetailsReg.name,
-        index: predictionDetailsReg.index,
-        classification_head_name: predictionDetailsCls.name,
-        classification_head_index: predictionDetailsCls.index,
-        classification_head_probabilities: predictionDetailsCls.probabilities,
-        raw_regression_score: rawRegressionScore,
-        raw_classification_logits: predictionDetailsCls.raw_logits,
-        model_used: activeConfig.name,
-        model_id: activeConfig.id
-      };
-    } 
-    else { // Single output models (either regression or classification)
-      const outputData = results[onnxSession.outputNames[0]]?.data;
-      if (!outputData) {
-          throw new Error("Primary output not found for single-output model.");
-      }
-
-      if (outputData.length === 1) { // Assumed to be a single regression score
-        const rawScore = outputData[0];
-        const regressionScore = Math.max(0.0, Math.min(1.0, rawScore));
-        const predictionDetailsReg = mapScoreToClassDetails(regressionScore, activeConfig.outputFormat.classLabels);
-        return {
-          score: regressionScore,
-          name: predictionDetailsReg.name,
-          index: predictionDetailsReg.index,
-          raw_regression_score: rawScore,
-          model_used: activeConfig.name,
-          model_id: activeConfig.id
-        };
-      } else { // Assumed to be classification logits
-        const predictionDetailsCls = mapClassificationLogitsToClassDetails(
-          Array.from(outputData), activeConfig.outputFormat.classLabels
-        );
-        return {
-          score: predictionDetailsCls.probabilities ? Math.max(...predictionDetailsCls.probabilities) : 0,
-          name: predictionDetailsCls.name,
-          index: predictionDetailsCls.index,
-          classification_head_name: predictionDetailsCls.name,
-          classification_head_index: predictionDetailsCls.index,
-          classification_head_probabilities: predictionDetailsCls.probabilities,
-          raw_classification_logits: predictionDetailsCls.raw_logits,
-          model_used: activeConfig.name,
-          model_id: activeConfig.id
-        };
-      }
+    if (onnxSession.outputNames.includes('logits')) {
+        classificationProbabilities = results['logits'].data;
+    } else {
+        console.warn("Output 'logits' not found, using the first output tensor by default.");
     }
+
+
+    // Softmax application if model output is raw logits
+    let finalProbabilities = Array.from(classificationProbabilities);
+    if (currentModelConfig.outputFormat.applySoftmax) {
+      finalProbabilities = softmax(Array.from(classificationProbabilities));
+    }
+    
+    const classLabels = currentModelConfig.outputFormat.classLabels;
+    if (!classLabels || Object.keys(classLabels).length !== finalProbabilities.length) {
+        console.error("Class labels mismatch or not defined for the current model.");
+        // Return raw probabilities if labels are problematic
+        return {
+            emotion: "Error: Label mismatch",
+            score: 0,
+            classification_head_probabilities: finalProbabilities 
+        };
+    }
+
+    let maxScore = -Infinity;
+    let detectedEmotion = 'N/A';
+    finalProbabilities.forEach((score, index) => {
+      if (score > maxScore) {
+        maxScore = score;
+        detectedEmotion = classLabels[index] || `Class ${index}`;
+      }
+    });
+
+    return {
+      emotion: detectedEmotion,
+      score: maxScore,
+      classification_head_probabilities: finalProbabilities // Return all probabilities
+    };
   } catch (error) {
-    console.error('ONNX prediction error:', error);
+    console.error('Error during ONNX inference:', error);
     return null;
   }
 };
 
+// Helper function for softmax (if needed, some models output logits)
+const softmax = (arr) => {
+  const maxLogit = Math.max(...arr);
+  const exps = arr.map(x => Math.exp(x - maxLogit));
+  const sumExps = exps.reduce((a, b) => a + b);
+  return exps.map(x => x / sumExps);
+};
+
 export const getCurrentModelInfo = () => {
-  return currentModelConfig || getActiveModelConfig();
+  return currentModelConfig ? 
+    { 
+      id: currentModelConfig.id,
+      name: currentModelConfig.name,
+      filename: currentModelConfig.filename,
+      inputFormat: currentModelConfig.inputFormat,
+      outputFormat: currentModelConfig.outputFormat,
+      normalizationType: currentModelConfig.normalizationType 
+    } : 
+    null;
+};
+
+export const getAllModels = () => {
+    return getAllModelConfigsUtil();
 };
 
 export const switchModel = async (modelId) => {
-  try {
-    const newModelConfig = getModelConfigUtil(modelId); // Use renamed import
+    console.log(`Attempting to switch model to: ${modelId}`);
+    const newModelConfig = getModelConfigUtil(modelId);
     if (!newModelConfig) {
-      console.error(`Model '${modelId}' not found in config.`);
-      return false;
+        console.error(`Cannot switch: Model with ID '${modelId}' not found in configuration.`);
+        return false;
     }
-    if (!setActiveModelUtil(modelId)) { // Use renamed import
-      console.error(`Failed to set active model to '${modelId}'.`);
-      return false;
+    if (currentModelConfig && currentModelConfig.id === modelId && onnxSession) {
+        console.log(`Model ${modelId} is already active.`);
+        return true; // Already active
     }
-    onnxSession = null; // Force re-initialization on next predict/load
-    currentModelConfig = null; // Clear cached current config
-    console.log(`Switched to model: ${newModelConfig.name}. Session will re-initialize on next use.`);
-    return true;
-  } catch (error) {
-    console.error('Failed to switch model:', error);
-    return false;
-  }
-};
-
-export const getAvailableModels = async () => { // Made async to match older signature if needed
-  try {
-    return getAllModelConfigsUtil(); // Use renamed import
-  } catch (error) {
-    console.error('Failed to get available models:', error);
-    return {};
-  }
-};
-
-export const isModelLoaded = () => {
-  return onnxSession !== null;
-};
-
-export const reloadCurrentModel = async () => {
-  try {
-    const activeConfig = getActiveModelConfig(); // Get current active model ID from config
-    onnxSession = null;
-    currentModelConfig = null;
-    console.log(`Reloading model: ${activeConfig.name}`);
-    return await initializeOnnxModel(activeConfig.id); // Initialize with the current active ID
-  } catch (error) {
-    console.error('Failed to reload model:', error);
-    return false;
-  }
+    return initializeOnnxModel(modelId); // Re-initialize with the new model ID
 };
