@@ -159,25 +159,54 @@ const EmotionMonitor = () => {
     minX = Math.max(0, minX - padding);
     minY = Math.max(0, minY - padding);
     maxX = Math.min(canvas.width, maxX + padding);
-    maxY = Math.min(canvas.height, maxY + padding);
-
-    ctx.strokeStyle = '#FFCC00'; // Default yellow
+    maxY = Math.min(canvas.height, maxY + padding);    ctx.strokeStyle = '#FFCC00'; // Default yellow
     if (detectedEmotion) {
       if (['Happy', 'Surprise'].includes(detectedEmotion)) ctx.strokeStyle = '#00FF00'; // Green
       else if (['Sad', 'Fear', 'Disgust', 'Anger', 'Contempt'].includes(detectedEmotion)) ctx.strokeStyle = '#FF0000'; // Red
     }
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 4;
     ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
 
     if (detectedEmotion) {
       const boxWidth = maxX - minX;
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      ctx.fillRect(minX, minY - 30, boxWidth, 30);
-      const labelFontSize = Math.max(14, Math.min(18, boxWidth / 10));
-      ctx.font = `bold ${labelFontSize}px Arial`;
+      const boxHeight = maxY - minY;
+      
+      // Calculate dynamic font size based on box size
+      const baseFontSize = Math.max(16, Math.min(28, Math.min(boxWidth / 8, boxHeight / 12)));
+      const labelHeight = baseFontSize + 20;
+      
+      // Draw background for emotion label
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      ctx.fillRect(minX, minY - labelHeight, boxWidth, labelHeight);
+      
+      // Draw emotion text with enhanced styling
+      ctx.font = `bold ${baseFontSize}px 'Segoe UI', Arial, sans-serif`;
       ctx.fillStyle = ctx.strokeStyle; // Use the same color as the box for text
       ctx.textAlign = "center";
-      ctx.fillText(`${detectedEmotion} (${emotionScore !== null ? emotionScore.toFixed(2) : 'N/A'})`, minX + (boxWidth / 2), minY - 10);
+      ctx.textBaseline = "middle";
+      
+      // Add text shadow effect
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+      ctx.shadowBlur = 3;
+      ctx.shadowOffsetX = 1;
+      ctx.shadowOffsetY = 1;
+      
+      const emotionText = `${detectedEmotion}`;
+      const scoreText = `${emotionScore !== null ? (emotionScore * 100).toFixed(0) + '%' : 'N/A'}`;
+      
+      // Draw emotion name
+      ctx.fillText(emotionText, minX + (boxWidth / 2), minY - labelHeight + baseFontSize/2 + 5);
+      
+      // Draw score with smaller font
+      ctx.font = `600 ${Math.max(12, baseFontSize * 0.7)}px 'Segoe UI', Arial, sans-serif`;
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillText(scoreText, minX + (boxWidth / 2), minY - labelHeight + baseFontSize + 8);
+      
+      // Reset shadow
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
     }
     ctx.restore();
   };
@@ -223,53 +252,64 @@ const EmotionMonitor = () => {
       }, 50);
     }
   };
-
   return (
     <div className="emotion-monitor">
       <div className="status-bar">
-        <div className="status-text">
-          <span>FaceMesh: {faceMeshStatus}</span>
-          <span>ONNX: {onnxStatus}</span>
-          <span className="top-emotion">Top Emotion: {detectedEmotion || 'Detecting...'}</span>
-          {errorMessage && <span className="error-message">Error: {errorMessage}</span>}
-          {/* Show all class probabilities */}
-          {allProbabilities.length > 0 && (
+        <div className="status-header">
+          <div className="status-text">
+            <span>FaceMesh: {faceMeshStatus}</span>
+            <span>ONNX: {onnxStatus}</span>
+            <span className="top-emotion">Top Emotion: {detectedEmotion || 'Detecting...'}</span>
+            {errorMessage && <span className="error-message">Error: {errorMessage}</span>}
+          </div>
+          <div className="button-group">
+            <button onClick={toggleActive} className={`toggle-button ${isActive ? 'active' : 'inactive'}`}>
+              {isActive ? 'Pause' : 'Resume'}
+            </button>
+            {errorMessage && (
+              <button onClick={handleRetry} className="retry-button">
+                Retry
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Enhanced probabilities display */}
+        {allProbabilities.length > 0 && (
+          <div className="probabilities-section">
+            <div className="probabilities-title">Emotion Probabilities</div>
             <div className="probabilities-list">
               {allProbabilities.map(({ label, probability }) => (
-                <span key={label}>{label}: { (probability * 100).toFixed(1) }%</span>
+                <div key={label} className="probability-item">
+                  <span className="probability-label">{label}</span>
+                  <span className="probability-value">{(probability * 100).toFixed(1)}%</span>
+                </div>
               ))}
             </div>
-          )}
-          {/* Checkboxes to ignore specific emotions */}
-          {allProbabilities.length > 0 && (
-            <div className="ignore-list">
-              <span>Ignore:</span>
+          </div>
+        )}
+
+        {/* Styled emotion filter buttons */}
+        {allProbabilities.length > 0 && (
+          <div className="emotion-filters">
+            <div className="filters-title">Emotion Filters</div>
+            <div className="emotion-toggle-grid">
               {Object.keys(getCurrentModelInfo().outputFormat.classLabels).map(key => {
                 const label = getCurrentModelInfo().outputFormat.classLabels[key];
-                const checked = ignoredEmotions.includes(label);
+                const isIgnored = ignoredEmotions.includes(label);
                 return (
-                  <label key={label}>
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => handleToggleIgnore(label)}
-                    /> {label}
-                  </label>
+                  <div
+                    key={label}
+                    className={`emotion-toggle-btn ${isIgnored ? 'disabled' : 'enabled'}`}
+                    onClick={() => handleToggleIgnore(label)}
+                  >
+                    {label}
+                  </div>
                 );
               })}
             </div>
-          )}
-        </div>
-        <div className="button-group">
-          <button onClick={toggleActive} className={`toggle-button ${isActive ? 'active' : 'inactive'}`}>
-            {isActive ? 'Pause' : 'Resume'}
-          </button>
-          {errorMessage && (
-            <button onClick={handleRetry} className="retry-button">
-              Retry
-            </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <div className="video-container">
