@@ -1,10 +1,14 @@
 import React, { useRef, useState, useEffect } from 'react';
 import useFaceMesh from '../hooks/useFaceMesh';
+import FaceCloseUpStage from '../services/faceCloseUpStage';
+import PreprocessDebugView from './PreprocessDebugView';
 import { initializeOnnxModel, predictEngagement, getCurrentModelInfo, getAllModels, switchModel } from '../services/emotionOnnxService'; // Added model loader functions
 import '../styles/EmotionMonitor.css';
 
 // Constant to enable/disable John Normalization
 const ENABLE_JOHN_NORMALIZATION = false;
+// Enable separate zoomed-face emotion prediction display
+const ENABLE_ZOOM_PREDICTIONS = true;
 
 const EmotionMonitor = () => {
   const videoRef = useRef(null);
@@ -27,8 +31,18 @@ const EmotionMonitor = () => {
   // Grab current model info (may be null on failure)
   const modelInfo = getCurrentModelInfo();  // List of emotions to ignore when selecting top result
   const [ignoredEmotions, setIgnoredEmotions] = useState([]);
-  // State for softmax filter toggle
+  // State for face close-up image data URL
+  const [closeUpDataUrl, setCloseUpDataUrl] = useState(null);
+  // State for zoomed face emotion probabilities
+  const [zoomProbabilities, setZoomProbabilities] = useState([]);
+  // Debug: log when close-up data URL updates
+  useEffect(() => {
+    console.debug('[Preprocess Debug] closeUpDataUrl updated:', closeUpDataUrl);
+  }, [closeUpDataUrl]);
+  // State for softmax filter toggle (full frame)
   const [showFilteredProbabilities, setShowFilteredProbabilities] = useState(true);
+  // State for zoomed-face probabilities display toggle
+  const [showFilteredZoom, setShowFilteredZoom] = useState(true);
   
   // Toggle ignore for a given emotion label
   const handleToggleIgnore = (label) => {
@@ -81,6 +95,14 @@ const EmotionMonitor = () => {
     };
     return emotionColors[emotion] || '#64748b';
   };
+  // Get zoomed-face probabilities to display based on toggle state
+  const getDisplayZoom = () => {
+    if (!zoomProbabilities.length) return [];
+    if (showFilteredZoom) {
+      return applySoftmax(zoomProbabilities);
+    }
+    return [...zoomProbabilities].sort((a, b) => b.probability - a.probability);
+  };
 
   // Get emotion background color for bounding box
   const getEmotionBgColor = (emotion) => {
@@ -102,6 +124,9 @@ const EmotionMonitor = () => {
   const lastFpsLogTimeRef = useRef(Date.now());
   // Throttle ONNX inference to once every 1.5 seconds
   const lastInferenceTimeRef = useRef(0);
+  // Throttle zoomed-face predictions separately
+  const lastZoomTimeRef = useRef(0);
+  const ZOOM_INFERENCE_INTERVAL_MS = 1500;
 
   // Initialize ONNX model
   useEffect(() => {
@@ -127,6 +152,13 @@ const EmotionMonitor = () => {
     initModel();
     // Load available models
     setAvailableModels(getAllModels() || []);
+  }, []);
+  
+  // Prepare FaceCloseUpStage
+  const stageRef = useRef(new FaceCloseUpStage(256, 0.2, '/models', true));
+  useEffect(() => {
+    // Load any required models (no-op for FaceMesh-based)
+    stageRef.current.loadModels().catch(err => console.error('FaceCloseUpStage load error:', err));
   }, []);
 
   // Handle model selection
@@ -159,7 +191,10 @@ const EmotionMonitor = () => {
       // Clear previous emotion if no face is detected
       setDetectedEmotion(null);
       setEmotionScore(null);
-      // Clear canvas if no face
+      // Clear zoom and debug views
+      setZoomProbabilities([]);
+      setCloseUpDataUrl(null);
+      // Clear canvas
       if (canvasRef.current) {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
@@ -187,6 +222,8 @@ const EmotionMonitor = () => {
     }
 
     const landmarks = results.multiFaceLandmarks[0]; // Assuming one face
+    // Debug: print raw landmarks from FaceMesh
+    console.log('[Landmarks Raw]', landmarks);
 
     if (isActive && landmarks && onnxModelReady) {
       const now = Date.now();
@@ -194,8 +231,9 @@ const EmotionMonitor = () => {
       if (now - lastInferenceTimeRef.current >= 1000) {
         lastInferenceTimeRef.current = now;
         console.log(`[${new Date().toISOString()}] Running inference...`);
-
+        // Initialize and debug: print landmarks used for full-frame prediction
         let landmarksForPrediction = landmarks;
+        console.log('[Landmarks For Prediction]', landmarksForPrediction);
         let widthForPrediction = videoWidth;
         let heightForPrediction = videoHeight;
 
@@ -234,8 +272,11 @@ const EmotionMonitor = () => {
         }
 
         try {
-          const prediction = await predictEngagement(landmarksForPrediction, widthForPrediction, heightForPrediction);
-          console.log(`[${new Date().toISOString()}] Prediction result:`, prediction);
+          // Log full-frame raw landmarks
+          console.log('--- FULL FRAME INPUT ---');
+          console.log('Raw landmarks:', landmarksForPrediction);
+          const prediction = await predictEngagement(landmarksForPrediction, widthForPrediction, heightForPrediction, { context: 'FULL' });
+          console.log(`[${new Date().toISOString()}] FULL FRAME PREDICTION:`, prediction);
         if (prediction) {
           setDetectedEmotion(prediction.emotion);
           setEmotionScore(prediction.score);
@@ -268,6 +309,8 @@ const EmotionMonitor = () => {
     }
 
     // Draw face bounding box (optional, but good for visualization)
+    // After drawing, extract cropped face
+    // Compute tight face box and apply relative padding
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     landmarks.forEach(landmark => {
       const x = landmark.x * canvas.width;
@@ -276,11 +319,16 @@ const EmotionMonitor = () => {
       minY = Math.min(minY, y);
       maxX = Math.max(maxX, x);
       maxY = Math.max(maxY, y);
-    });    const padding = 20;
-    minX = Math.max(0, minX - padding);
-    minY = Math.max(0, minY - padding);
-    maxX = Math.min(canvas.width, maxX + padding);
-    maxY = Math.min(canvas.height, maxY + padding);
+    });
+    // Relative padding: use same factor as FaceCloseUpStage
+    const boxW = maxX - minX;
+    const boxH = maxY - minY;
+    const padW = boxW * stageRef.current.paddingFactor;
+    const padH = boxH * stageRef.current.paddingFactor;
+    minX = Math.max(0, minX - padW);
+    minY = Math.max(0, minY - padH);
+    maxX = Math.min(canvas.width, maxX + padW);
+    maxY = Math.min(canvas.height, maxY + padH);
     
     // Use emotion-specific colors
     const emotionColor = getEmotionColor(detectedEmotion);
@@ -346,6 +394,44 @@ const EmotionMonitor = () => {
       ctx.shadowOffsetY = 0;
     }
     ctx.restore();
+    // Manual crop & zoom using detected box
+    const boxWidth = maxX - minX;
+    const boxHeight = maxY - minY;
+    if (boxWidth > 0 && boxHeight > 0) {
+      // Use FaceCloseUpStage for consistent padding, crop and resize
+      const faceBox = { x: minX, y: minY, width: boxWidth, height: boxHeight };
+      try {
+        const dataUrl = await stageRef.current.processCanvas(canvas, faceBox);
+        console.debug('[Preprocess Debug] cropped faceUrl via stage:', dataUrl ? 'OK' : 'null');
+        setCloseUpDataUrl(dataUrl);
+      } catch (err) {
+        console.error('FaceCloseUpStage crop error:', err);
+      }
+      // Prepare zoomed-face prediction with throttle
+      const nowZoom = Date.now();
+      console.log(`[ZoomPrediction] check: enabled=${ENABLE_ZOOM_PREDICTIONS}, ready=${onnxModelReady}, delta=${nowZoom - lastZoomTimeRef.current}ms`);
+      if (ENABLE_ZOOM_PREDICTIONS && onnxModelReady && nowZoom - lastZoomTimeRef.current >= ZOOM_INFERENCE_INTERVAL_MS) {
+        lastZoomTimeRef.current = nowZoom;
+        // normalize landmarks relative to box, rescale z to full-frame pixel space
+        const zoomLandmarks = landmarks.map(lm => ({
+          x: (lm.x * canvas.width - minX) / boxWidth,
+          y: (lm.y * canvas.height - minY) / boxHeight,
+          z: lm.z * (canvas.width / boxWidth)
+        }));
+        console.log('[ZoomPrediction] landmarks:', zoomLandmarks);
+        try {
+          // Run zoomed-face prediction with same preprocessing as full-frame
+          const zoomPred = await predictEngagement(zoomLandmarks, boxWidth, boxHeight);
+          console.log('[ZoomPrediction] raw result:', zoomPred);
+          const labels = getCurrentModelInfo().outputFormat.classLabels;
+          const zp = (zoomPred?.classification_head_probabilities || []).map((p, i) => ({ label: labels[i], probability: p }));
+          console.log('[ZoomPrediction] probabilities:', zp);
+          setZoomProbabilities(zp);
+        } catch (e) {
+          console.error('[ZoomPrediction] error:', e);
+        }
+      }
+    }
   };
 
   const handleFaceMeshStatus = (status) => {
@@ -427,33 +513,59 @@ const EmotionMonitor = () => {
 
       {/* Main content layout - side by side */}
       <div className="main-content">
-        <div className="video-container">
-          <video ref={videoRef} className="webcam" muted playsInline autoPlay style={{ objectFit: 'contain' }} />
-          <canvas ref={canvasRef} className="overlay" style={{ objectFit: 'contain' }} />
-          {isLoading && (
-            <div className="loading-overlay">
-              <div className="loading-spinner"></div>
-              <div className="loading-text">{faceMeshStatus}</div>
-            </div>
-          )}
+        {/* Video and preprocess debug stack */}
+        <div className="video-area">
+          <div className="video-container">
+            <video ref={videoRef} className="webcam" muted playsInline autoPlay style={{ objectFit: 'contain' }} />
+            <canvas ref={canvasRef} className="overlay" style={{ objectFit: 'contain' }} />
+            {isLoading && (
+              <div className="loading-overlay">
+                <div className="loading-spinner"></div>
+                <div className="loading-text">{faceMeshStatus}</div>
+              </div>
+            )}
+          </div>
+          {/* Preprocessed face debug view below webcam */}
+          <PreprocessDebugView dataUrl={closeUpDataUrl} />
         </div>
-
         {/* Probabilities sidebar */}
         <div className="probabilities-sidebar">          {/* Enhanced probabilities display */}
           {allProbabilities.length > 0 && (
             <div className="probabilities-section">
               <div className="probabilities-header">
-                <div className="probabilities-title">🎭 Emotion Probabilities</div>
-                <button 
+                <div className="probabilities-title">🎭 Emotion Probabilities (Full Frame)</div>
+                <button
                   className={`softmax-toggle-btn ${showFilteredProbabilities ? 'filtered' : 'raw'}`}
                   onClick={() => setShowFilteredProbabilities(!showFilteredProbabilities)}
-                  title={showFilteredProbabilities ? 'Showing filtered with softmax' : 'Showing all raw probabilities'}
+                  title={showFilteredProbabilities ? 'Filtered softmax' : 'Raw probabilities'}
                 >
                   {showFilteredProbabilities ? '🧮 Filtered' : '📊 Raw'}
                 </button>
               </div>
               <div className="probabilities-list">
                 {getDisplayProbabilities().map(({ label, probability }) => (
+                  <div key={label} className="probability-item" data-emotion={label}>
+                    <span className="probability-label">{label}</span>
+                    <span className="probability-value">{(probability * 100).toFixed(1)}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {ENABLE_ZOOM_PREDICTIONS && zoomProbabilities.length > 0 && (
+            <div className="probabilities-section zoomed">
+              <div className="probabilities-header">
+                <div className="probabilities-title">🎯 Zoomed Face Probabilities</div>
+                <button
+                  className={`softmax-toggle-btn ${showFilteredZoom ? 'filtered' : 'raw'}`}
+                  onClick={() => setShowFilteredZoom(!showFilteredZoom)}
+                  title={showFilteredZoom ? 'Filtered softmax (zoom)' : 'Raw probabilities (zoom)'}
+                >
+                  {showFilteredZoom ? '🧮 Filtered' : '📊 Raw'}
+                </button>
+              </div>
+              <div className="probabilities-list">
+                {getDisplayZoom().map(({ label, probability }) => (
                   <div key={label} className="probability-item" data-emotion={label}>
                     <span className="probability-label">{label}</span>
                     <span className="probability-value">{(probability * 100).toFixed(1)}%</span>

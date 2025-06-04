@@ -269,14 +269,45 @@ export const mapClassificationLogitsToClassDetails = (logits, classLabels = null
   return details;
 };
 
-export const predictEngagement = async (landmarks, videoWidth, videoHeight) => { // Added videoWidth, videoHeight
+/**
+ * Predict engagement/emotion from landmarks.
+ * @param {Array} landmarks Array of {x,y,z} landmarks.
+ * @param {number} videoWidth Width used for normalization.
+ * @param {number} videoHeight Height used for normalization.
+ * @param {{skipNormalization?: boolean}} [options] If true, bypasses preprocessLandmarks normalization.
+ */
+export const predictEngagement = async (landmarks, videoWidth, videoHeight, options = {}) => {
   if (!onnxSession || !currentModelConfig) {
     console.error('ONNX session or model config not initialized.');
     return null;
   }
 
-  // Preprocess landmarks: this now receives videoWidth and videoHeight for FER+ norm
-  const processedInput = preprocessLandmarks(landmarks, videoWidth, videoHeight);
+  const skipNorm = options.skipNormalization === true;
+  const ctxLabel = options.context || 'FULL';
+  let processedInput;
+  if (skipNorm) {
+    // Create flat input skipping normalization (assumes landmarks already in normalized [0,1] range)
+    const { SEQ_LEN, NUM_LANDMARKS, NUM_COORDS } = getModelDimensions();
+    // Single frame array
+    const frameArray = new Float32Array(NUM_LANDMARKS * NUM_COORDS).fill(-1.0);
+    for (let j = 0; j < Math.min(landmarks.length, NUM_LANDMARKS); j++) {
+      const lm = landmarks[j];
+      if (lm && typeof lm.x === 'number') {
+        frameArray[j * NUM_COORDS + 0] = lm.x;
+        frameArray[j * NUM_COORDS + 1] = lm.y;
+        frameArray[j * NUM_COORDS + 2] = lm.z;
+      }
+    }
+    // Build sequence-length input, pad remaining frames as -1
+    processedInput = new Float32Array(SEQ_LEN * NUM_LANDMARKS * NUM_COORDS).fill(-1.0);
+    processedInput.set(frameArray, 0);
+  } else {
+    // Standard preprocessing (including FERPlus or legacy normalization)
+    processedInput = preprocessLandmarks(landmarks, videoWidth, videoHeight);
+  }
+  // Log processed input tensor details
+  console.log(`[${ctxLabel}] processedInput length:`, processedInput.length);
+  console.log(`[${ctxLabel}] processedInput first 30:`, processedInput.slice(0, 30));
 
   // Use the configured input tensor shape from modelConfig (e.g., [1, 478, 3])
   const inputShape = currentModelConfig.inputFormat.tensorShape;
@@ -327,6 +358,9 @@ export const predictEngagement = async (landmarks, videoWidth, videoHeight) => {
       }
     });
 
+    // Log raw logits and post-softmax probabilities
+    console.log(`[${ctxLabel}] raw logits first 8:`, classificationProbabilities.slice(0, 8));
+    console.log(`[${ctxLabel}] post-softmax first 8:`, finalProbabilities.slice(0, 8));
     return {
       emotion: detectedEmotion,
       score: maxScore,
