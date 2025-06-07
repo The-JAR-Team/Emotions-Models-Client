@@ -1,3 +1,10 @@
+h1{
+  font-size: 2.5em;
+  line-height: 1.2;
+  margin: 0;
+  color: var(--color-primary);
+  text-align: center;
+}
 .emotion-monitor {
     /* Base colors */
     --color-bg: #f8fafc;
@@ -44,24 +51,25 @@
     
     --border-radius: 16px;
     --shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-    --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.15);
-    
-    background: linear-gradient(135deg, var(--color-bg) 0%, #e2e8f0 100%);
+    --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.15);    background: linear-gradient(135deg, var(--color-bg) 0%, #e2e8f0 100%);
     color: var(--color-primary);
     display: flex;
     flex-direction: column;
     align-items: center;
     font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-    padding: 24px;
+    padding: 20px;
     border: none;
     border-radius: var(--border-radius);
     box-shadow: var(--shadow);
     width: 100%;
-    max-width: 1400px;
-    margin: 20px auto;
-    min-height: 700px;
+    max-width: 100%;
+    margin: 0;
+    min-height: 100vh; /* Keep min-height but allow growth */
+    height: auto; /* Allow natural height growth */
     backdrop-filter: blur(10px);
-  }  .status-bar {
+    box-sizing: border-box;
+    overflow-x: hidden; /* Prevent horizontal scroll at the root level */
+  }.status-bar {
     display: flex;
     flex-direction: column;
     gap: 20px;
@@ -75,8 +83,7 @@
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.2);
   }
-  
-  .status-header {
+    .status-header {
     display: flex;
     flex-wrap: wrap;
     justify-content: space-between;
@@ -133,8 +140,7 @@
   padding: 4px 8px;
   background: var(--emotion-anger-bg);
   border-radius: 6px;
-}
-    .status-text {
+}    .status-text {
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -144,15 +150,23 @@
     background: linear-gradient(135deg, #f8fafc, #f1f5f9);
     border-radius: 12px;
     border: 1px solid #e2e8f0;
+    width: 100%;
+    box-sizing: border-box;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
   }
-  
-  .status-text span {
+    .status-text span {
     margin: 0;
     padding: 8px 12px;
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.7);
     font-weight: 500;
     transition: all 0.2s ease;
+    width: 100%;
+    box-sizing: border-box;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    white-space: normal;
   }
   
   .status-text span:hover {
@@ -566,53 +580,98 @@
   
   .retry-button:hover {
     background: linear-gradient(135deg, #dc2626, #b91c1c);
-    box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);  }
-  /* Main content layout - side by side */
+    box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);  }  /* Centered Modern Layout - Better UX/UI Design */
   .main-content {
-    display: flex;
-    gap: 20px;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    grid-template-rows: auto;
+    gap: 24px;
     width: 100%;
-    align-items: flex-start;
-    justify-content: center;
+    max-width: 1400px; /* Centered container with max width */
+    margin: 0 auto; /* Center the entire layout */
+    padding: 0 20px;
+    box-sizing: border-box;
+    /* Removed min-height constraint to allow natural content height */
+    align-items: start;
+    overflow-x: hidden; /* Prevent horizontal scroll */
+  }/* Video area - takes available grid space */
+  .video-area {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+    width: 100%;
+    height: fit-content;
   }
 
   .video-container {
     position: relative;
-    flex: 0 0 75%;
-    max-width: 900px;
-    aspect-ratio: 4 / 3;
+    width: 100%;
+    aspect-ratio: 16 / 9; /* Modern wide format */
     border-radius: var(--border-radius);
     overflow: hidden;
     box-shadow: var(--shadow);
     background: #000;
-  }
-
-  /* Probabilities sidebar - compact */
+  }  /* Modern Sidebar - Card-based Design with Perfect Height Management */
   .probabilities-sidebar {
-    flex: 0 0 23%;
-    max-width: 280px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
+    width: 320px;
+    max-width: 320px;
     padding: 0;
-  }
-
-  /* Update probabilities section for sidebar - compact */  .probabilities-sidebar .probabilities-section {
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: 12px;
+    height: fit-content;
+    /* Removed max-height and sticky positioning to prevent cutoff */
+    position: static; /* Changed from sticky to static */
+  }/* Modern Card Design for Probabilities */
+  .probabilities-sidebar .probabilities-section {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.9));
+    border-radius: 16px;
     padding: 16px;
-    box-shadow: var(--shadow);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-height: 400px; /* Limit probabilities section height */
+    overflow-y: auto; /* Allow scrolling if content is too long */
+    transition: all 0.3s ease;
   }
 
-  /* Probabilities header with toggle button */
+  .probabilities-sidebar .probabilities-section:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  }  /* Custom scrollbar for probabilities section */
+  .probabilities-sidebar .probabilities-section::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .probabilities-sidebar .probabilities-section::-webkit-scrollbar-track {
+    background: rgba(226, 232, 240, 0.3);
+    border-radius: 3px;
+  }
+
+  .probabilities-sidebar .probabilities-section::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, var(--color-secondary), var(--color-accent));
+    border-radius: 3px;
+    transition: all 0.2s ease;
+  }
+
+  .probabilities-sidebar .probabilities-section::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, var(--color-accent), var(--color-secondary));
+  }
+
+  /* Enhanced Header Design */
   .probabilities-sidebar .probabilities-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 12px;
     gap: 8px;
+    flex-shrink: 0;
+    padding-bottom: 8px;
+    border-bottom: 2px solid rgba(59, 130, 246, 0.1);
   }
 
   .probabilities-sidebar .probabilities-title {
@@ -626,16 +685,14 @@
     -webkit-text-fill-color: transparent;
     background-clip: text;
     flex: 1;
-  }
-
-  /* Elegant softmax toggle button */
+  }  /* Modern Toggle Button Design */
   .softmax-toggle-btn {
-    padding: 4px 8px;
+    padding: 6px 12px;
     border: 2px solid;
     border-radius: 8px;
     background: white;
     cursor: pointer;
-    font-size: 0.7em;
+    font-size: 0.75em;
     font-weight: 700;
     text-align: center;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -644,6 +701,7 @@
     overflow: hidden;
     min-width: 60px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    flex-shrink: 0;
   }
 
   .softmax-toggle-btn::before {
@@ -671,7 +729,7 @@
     background: var(--color-accent);
     color: white;
     transform: translateY(-1px) scale(1.05);
-    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.3);
   }
 
   .softmax-toggle-btn.raw {
@@ -684,31 +742,47 @@
     background: var(--color-secondary);
     color: white;
     transform: translateY(-1px) scale(1.05);
-    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
-  }
-
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);
+  }  /* Modern Probability List Design */
   .probabilities-sidebar .probabilities-list {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .probabilities-sidebar .probability-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 12px;
-    border-radius: 8px;
+    padding: 10px 12px;
+    border-radius: 10px;
     font-size: 0.85em;
     font-weight: 600;
     transition: all 0.3s ease;
     border: 2px solid transparent;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(248, 250, 252, 0.6));
+    backdrop-filter: blur(8px);
+    cursor: pointer;
+  }
+
+  .probabilities-sidebar .probability-item:hover {
+    transform: translateX(4px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.8));
   }
 
   .probabilities-sidebar .probability-label {
     flex: 1;
     text-align: left;
     font-size: 0.8em;
+    font-weight: 600;
+    color: var(--color-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .probabilities-sidebar .probability-value {
@@ -716,57 +790,84 @@
     font-weight: 700;
     min-width: 45px;
     text-align: right;
+    color: var(--color-secondary);
+    flex-shrink: 0;
+  }  /* Modern Emotion Filters Card */
+  .probabilities-sidebar .emotion-filters {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.9));
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    /* Removed overflow: hidden to fix cutoff */
+    transition: all 0.3s ease;
+    min-height: fit-content; /* Ensure full content is visible */
+    height: auto; /* Allow natural height */
   }
 
-  /* Update emotion filters for sidebar - compact */
-  .probabilities-sidebar .emotion-filters {
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: 12px;
-    padding: 16px;
-    box-shadow: var(--shadow);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+  .probabilities-sidebar .emotion-filters:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
   }
 
   .probabilities-sidebar .filters-title {
-    font-size: 1em;
+    font-size: 0.9em;
     font-weight: 700;
     color: var(--color-primary);
     margin-bottom: 12px;
     text-align: center;
-    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    padding-bottom: 8px;
+    border-bottom: 2px solid rgba(139, 92, 246, 0.1);
   }
-
   .probabilities-sidebar .emotion-toggle-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 6px;
+    /* Removed overflow: hidden to fix button cutoff */
+    height: auto; /* Allow natural height */
+    min-height: fit-content; /* Ensure all buttons are visible */
   }
 
   .probabilities-sidebar .emotion-toggle-btn {
     padding: 6px 8px;
-    border-radius: 6px;
+    border-radius: 8px;
     text-align: center;
-    font-size: 0.75em;
+    font-size: 0.7em;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
     border: 2px solid transparent;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(248, 250, 252, 0.6));
+    backdrop-filter: blur(8px);
   }
 
+  .probabilities-sidebar .emotion-toggle-btn:hover {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
   /* Legacy video container for backwards compatibility */
   .emotion-monitor > .video-container {
     position: relative;
     width: 100%;
-    max-width: 640px;
-    aspect-ratio: 4 / 3;
+    max-width: 1200px; /* Increased from 640px */
+    aspect-ratio: 16 / 9; /* Changed from 4/3 to wider */
     border-radius: var(--border-radius);
     overflow: hidden;
     box-shadow: var(--shadow);
     background: #000;
+    margin: 0 auto;
   }
 
   .webcam,
@@ -826,128 +927,325 @@
     100% {
       transform: rotate(360deg);
     }
+  }  /* Responsive Design - Mobile First Approach */
+  @media (max-width: 1400px) {
+    .main-content {
+      max-width: 1200px;
+      grid-template-columns: 1fr 300px;
+      gap: 20px;
+    }
+    
+    .probabilities-sidebar {
+      width: 300px;
+      max-width: 300px;
+    }
   }
 
-  /* Responsive Design */
+  @media (max-width: 1200px) {
+    .main-content {
+      max-width: 1000px;
+      grid-template-columns: 1fr 280px;
+      gap: 18px;
+      padding: 0 16px;
+    }
+    
+    .probabilities-sidebar {
+      width: 280px;
+      max-width: 280px;
+    }
+  }
   @media (max-width: 1024px) {
     .main-content {
-      flex-direction: column;
-      gap: 16px;
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto;
+      gap: 20px;
+      padding: 0 16px;
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+
+    .video-area {
+      grid-row: 1;
+      width: 100%;
+      max-width: 100%;
     }
 
     .video-container {
-      flex: none;
-      width: 100%;
-      max-width: 100%;
+      max-width: 800px; /* Limit max size on tablets */
+      margin: 0 auto;
     }
 
     .probabilities-sidebar {
-      flex: none;
+      grid-row: 2;
       width: 100%;
       max-width: 100%;
-      flex-direction: row;
+      max-height: none;
+      position: static;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
       gap: 16px;
+      overflow-x: hidden;
     }
 
     .probabilities-sidebar .probabilities-section,
     .probabilities-sidebar .emotion-filters {
-      flex: 1;
+      max-height: none;
+      width: 100%;
+      box-sizing: border-box;
     }
 
     .probabilities-sidebar .emotion-toggle-grid {
       grid-template-columns: repeat(4, 1fr);
-    }
-  }
-
-  @media (max-width: 768px) {
+    }  }  @media (max-width: 768px) {
     .emotion-monitor {
-      padding: 15px;
-      margin: 10px;
-      max-width: 95%;
+      padding: 12px;
+      padding-bottom: 80px; /* Extra bottom padding for mobile */
+      border-radius: 12px;
+      overflow-x: hidden; /* Prevent horizontal scroll */
+      min-height: auto; /* Remove min-height constraint */
+      height: auto; /* Allow natural height */
     }
 
     .status-bar {
-      padding: 15px;
+      padding: 16px;
+      margin-bottom: 16px;
+      width: 100%;
+      box-sizing: border-box;
     }
 
     .status-header {
       flex-direction: column;
       align-items: stretch;
+      gap: 16px;
     }
 
-    .button-group {
-      justify-content: center;
+    .status-text {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      overflow-wrap: break-word;
+      word-wrap: break-word;
+    }
+
+    .status-text span {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      overflow-wrap: break-word;
+      word-wrap: break-word;
+      white-space: normal;
     }
 
     .main-content {
-      flex-direction: column;
-      gap: 12px;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      padding: 0 4px; /* Reduced padding for mobile */
+      max-width: 100%;
+      overflow-x: hidden;
     }
 
-    .probabilities-sidebar {
+    .video-area {
+      width: 100%;
+      min-width: 0;
+    }
+
+    .video-container {
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+    }    .probabilities-sidebar {
+      display: flex;
       flex-direction: column;
       gap: 12px;
+      width: 100%;
+      max-width: 100%;
+      max-height: none; /* Remove height constraint */
+      position: static; /* Remove sticky positioning */
     }
 
     .probabilities-sidebar .probabilities-section,
     .probabilities-sidebar .emotion-filters {
       padding: 12px;
+      margin: 0;
+      width: 100%;
+      box-sizing: border-box;
+      max-height: none; /* Remove height constraints */
+      height: auto; /* Allow natural height */
     }
 
-    .probabilities-list {
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 6px;
+    .probabilities-sidebar .emotion-filters {
+      min-height: fit-content; /* Ensure full content is visible */
+      overflow: visible; /* Remove any overflow hiding */
     }
 
-    .emotion-toggle-grid {
-      grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
-      gap: 6px;
+    .probabilities-sidebar .emotion-toggle-grid {
+      grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+      gap: 8px;
+      height: auto; /* Allow natural height */
+      min-height: fit-content; /* Ensure all buttons are visible */
     }
 
-    .emotion-toggle-btn {
-      padding: 6px 8px;
-      font-size: 0.8em;
+    .preprocess-toggle-container {
+      margin-bottom: 12px;
+      padding: 0 4px; /* Reduced padding */
+      width: 100%;
+      box-sizing: border-box;
     }
 
-    .probabilities-sidebar .emotion-toggle-btn {
-      padding: 6px 8px;
-      font-size: 0.75em;
+    .preprocess-toggle-btn {
+      width: 100%;
+      max-width: 300px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: center;
     }
 
     .top-emotion {
       font-size: 1.1em !important;
     }
-  }
-
-  @media (max-width: 480px) {
+  }  @media (max-width: 480px) {
     .emotion-monitor {
-      padding: 10px;
-      margin: 5px;
-      max-width: 98%;
+      padding: 6px; /* Reduced from 8px */
+      border-radius: 8px;
+      margin: 0; /* Remove any margin */
+      overflow-x: hidden;
+      width: 100%;
+      box-sizing: border-box;
+      min-height: auto; /* Remove min-height constraint */
+      height: auto; /* Allow natural height */
     }
 
     .status-bar {
-      padding: 12px;
-      gap: 12px;
+      padding: 10px; /* Reduced from 12px */
+      gap: 10px; /* Reduced from 12px */
+      margin-bottom: 10px; /* Reduced from 12px */
+      width: 100%;
+      box-sizing: border-box;
     }
 
-    .probabilities-list {
+    .status-text {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      overflow-wrap: break-word;
+      word-wrap: break-word;
+      overflow-x: hidden;
+    }
+
+    .status-text span {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      overflow-wrap: break-word;
+      word-wrap: break-word;
+      white-space: normal;
+      overflow-x: hidden;
+    }
+
+    .main-content {
+      padding: 0 2px; /* Reduced from 4px */
+      gap: 10px; /* Reduced from 12px */
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+      box-sizing: border-box;
+    }
+
+    .video-area {
+      width: 100%;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .video-container {
+      aspect-ratio: 4 / 3; /* More square for very small screens */
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      box-sizing: border-box;
+    }    .probabilities-sidebar {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+      max-height: none; /* Remove height constraints */
+      position: static; /* Remove sticky positioning */
+    }
+
+    .probabilities-sidebar .probabilities-section,
+    .probabilities-sidebar .emotion-filters {
+      width: 100%;
+      box-sizing: border-box;
+      overflow-x: hidden;
+      max-height: none; /* Remove height constraints */
+      height: auto; /* Allow natural height */
+      padding: 10px; /* Slightly reduced padding */
+    }
+
+    .probabilities-sidebar .emotion-filters {
+      min-height: fit-content; /* Ensure full content is visible */
+      overflow: visible; /* Remove any overflow hiding */
+    }
+
+    .probabilities-sidebar .probability-item {
+      padding: 8px 10px;
+      font-size: 0.8em;
+      width: 100%;
+      box-sizing: border-box;
+    }    .probabilities-sidebar .emotion-toggle-grid {
       grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      width: 100%;
+      height: auto; /* Allow natural height */
+      min-height: fit-content; /* Ensure all buttons are visible */
     }
 
-    .emotion-toggle-grid {
-      grid-template-columns: 1fr 1fr;
-    }
-
-    .probability-item {
-      padding: 6px 8px;
-      font-size: 0.85em;
+    .probabilities-sidebar .emotion-toggle-btn {
+      padding: 8px 4px; /* Reduced horizontal padding */
+      font-size: 0.65em;
+      min-height: 32px;
+      width: 100%;
+      box-sizing: border-box;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      white-space: nowrap;
     }
 
     .toggle-button,
     .retry-button {
-      padding: 8px 16px;
+      padding: 10px 16px;
       font-size: 0.9em;
+      width: 100%;
+      max-width: 280px;
+      margin: 0 auto;
+      box-sizing: border-box;
+    }
+
+    .preprocess-toggle-container {
+      margin-bottom: 8px;
+      padding: 0 2px; /* Reduced from 4px */
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .preprocess-toggle-btn {
+      padding: 8px 12px;
+      font-size: 12px;
+      width: 100%;
+      max-width: 280px;
+      margin: 0 auto;
+      box-sizing: border-box;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* Ensure all text elements don't cause overflow */
+    .probability-label,
+    .emotion-toggle-btn,
+    .preprocess-toggle-btn .toggle-text {
+      text-overflow: ellipsis;
+      overflow: hidden;
+      white-space: nowrap;
     }
   }
   .toggle-button.active:hover {
@@ -1080,12 +1378,12 @@
       font-size: 1.1em !important;
     }
   }
-  
-  @media (max-width: 480px) {
+    @media (max-width: 480px) {
     .emotion-monitor {
       padding: 10px;
       margin: 5px;
       max-width: 98%;
+      padding-bottom: 60px; /* Extra bottom padding for smallest mobile devices */
     }
     
     .status-bar {
@@ -1105,10 +1403,37 @@
       padding: 6px 8px;
       font-size: 0.85em;
     }
-    
-    .toggle-button, .retry-button {
+      .toggle-button, .retry-button {
       padding: 8px 16px;
       font-size: 0.9em;
+    }
+    
+    .model-loader {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+      padding: 8px 12px;
+    }
+    
+    .model-loader select {
+      min-width: 0;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      font-size: 0.9em;
+      padding: 6px 8px;
+    }
+    
+    .model-loader label {
+      font-size: 0.9em;
+      text-align: center;
+    }
+    
+    .model-loader .error-message {
+      margin-left: 0;
+      margin-top: 4px;
+      text-align: center;
+      font-size: 0.8em;
     }
   }
 
@@ -1118,6 +1443,7 @@
     justify-content: center;
     margin-bottom: 16px;
     padding: 0 16px;
+    width: 100%;
 }
 
 .preprocess-toggle-btn {
@@ -1136,6 +1462,7 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     position: relative;
     overflow: hidden;
+    white-space: nowrap;
 }
 
 .preprocess-toggle-btn::before {
