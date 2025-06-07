@@ -4,7 +4,7 @@ import '../styles/PreprocessDebugView.css';
 /**
  * Displays the preprocessed face image for debugging
  */
-const PreprocessDebugView = ({ dataUrl }) => {
+const PreprocessDebugView = ({ dataUrl, zoomData = [], showFiltered }) => {
   // Debug: log dataUrl updates
   React.useEffect(() => {
     console.debug('[PreprocessDebugView] dataUrl:', dataUrl);
@@ -21,6 +21,7 @@ const PreprocessDebugView = ({ dataUrl }) => {
     <div className="preprocess-debug-view">
       <div className="preprocess-title">🛠️ Preprocessed Face</div>
       <img src={dataUrl} alt="Preprocessed face" className="preprocess-image" />
+
     </div>
   );
 };

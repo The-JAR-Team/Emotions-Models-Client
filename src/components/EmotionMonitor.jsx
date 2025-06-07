@@ -42,7 +42,8 @@ const EmotionMonitor = () => {
   // State for softmax filter toggle (full frame)
   const [showFilteredProbabilities, setShowFilteredProbabilities] = useState(true);
   // State for zoomed-face probabilities display toggle
-  const [showFilteredZoom, setShowFilteredZoom] = useState(true);
+  const [showFilteredZoom, setShowFilteredZoom] = useState(true);  // State for showing/hiding the preprocessed face and zoom probabilities
+  const [showPreprocessAndZoom, setShowPreprocessAndZoom] = useState(false);
   
   // Toggle ignore for a given emotion label
   const handleToggleIgnore = (label) => {
@@ -509,12 +510,24 @@ const EmotionMonitor = () => {
               </button>
             )}
           </div>        </div>
-      </div>
-
-      {/* Main content layout - side by side */}
+      </div>      {/* Main content layout - side by side */}
       <div className="main-content">
         {/* Video and preprocess debug stack */}
         <div className="video-area">
+          {/* Toggle button for Preprocessed Face and Zoom Probabilities */}
+          <div className="preprocess-toggle-container">
+            <button 
+              onClick={() => setShowPreprocessAndZoom(!showPreprocessAndZoom)} 
+              className={`preprocess-toggle-btn ${showPreprocessAndZoom ? 'enabled' : 'disabled'}`}
+              title={showPreprocessAndZoom ? 'Hide debug view and zoom predictions' : 'Show debug view and zoom predictions'}
+            >
+              <span className="toggle-icon">{showPreprocessAndZoom ? '👁️' : '🔍'}</span>
+              <span className="toggle-text">
+                {showPreprocessAndZoom ? 'Hide Debug View' : 'Show Debug View'}
+              </span>
+            </button>
+          </div>
+          
           <div className="video-container">
             <video ref={videoRef} className="webcam" muted playsInline autoPlay style={{ objectFit: 'contain' }} />
             <canvas ref={canvasRef} className="overlay" style={{ objectFit: 'contain' }} />
@@ -525,8 +538,14 @@ const EmotionMonitor = () => {
               </div>
             )}
           </div>
-          {/* Preprocessed face debug view below webcam */}
-          <PreprocessDebugView dataUrl={closeUpDataUrl} />
+          {/* Preprocessed face debug view with zoomed-face probabilities below webcam */}
+          {showPreprocessAndZoom && (
+            <PreprocessDebugView
+              dataUrl={closeUpDataUrl}
+              zoomData={getDisplayZoom()}
+              showFiltered={showFilteredZoom}
+            />
+          )}
         </div>
         {/* Probabilities sidebar */}
         <div className="probabilities-sidebar">          {/* Enhanced probabilities display */}
@@ -552,7 +571,7 @@ const EmotionMonitor = () => {
               </div>
             </div>
           )}
-          {ENABLE_ZOOM_PREDICTIONS && zoomProbabilities.length > 0 && (
+          {ENABLE_ZOOM_PREDICTIONS && showPreprocessAndZoom && zoomProbabilities.length > 0 && (
             <div className="probabilities-section zoomed">
               <div className="probabilities-header">
                 <div className="probabilities-title">🎯 Zoomed Face Probabilities</div>
